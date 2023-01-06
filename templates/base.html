@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="generator" content="Histoire/{{ version }}">
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="{{ settings.file_server.server_url }}">
     {% filter indent(width=4) %}{% include os.path.join(page, 'head.html') %}{% endfilter %} {# Internal template #}
     {% filter indent(width=4) %}{% include 'html_head.html' %}{% endfilter %} {# Theme template #}
 </head>

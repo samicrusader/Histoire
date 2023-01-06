@@ -141,7 +141,10 @@ def serve_dir(actual_path):
     elif os.path.isfile(os.path.join(full_path, 'index.html')):
         return send_from_directory(os.path.join(base_path, actual_path), 'index.html')
     return render_template('base.html',
-                           relative_path=f'/{actual_path}', files=dir_walk(actual_path, full_path), page='listing')
+                           relative_path=f'/{actual_path.lstrip("/")}',
+                           modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
+                           .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
+                           files=dir_walk(actual_path, full_path), page='listing')
 
 
 @app.route('/<path:actual_path>')

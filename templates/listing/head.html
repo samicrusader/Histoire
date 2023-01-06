@@ -4,7 +4,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.1.0/sorts/tablesort.number.min.js" integrity="sha256-ra1pWQ7MfuVIolZ/phcEXegs9m1ehXaCNI8cmc3gJEs=" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.1.0/sorts/tablesort.filesize.min.js" integrity="sha256-qNYlSpvv2lsmkcarYkQBkUzVcHKaml/BHcGxcSNsyrU=" crossorigin="anonymous"></script>
 <title>Index of {{ relative_path }}</title>
-<meta property="og:site_name" content="komi.eternalrevolution.net">
 <meta property="og:title" content="Index of {{ relative_path }}">
+<meta property="article:modified_time" content="{{ modified_time }}" />
 {% if settings.file_server.enable_page_thumbnail %}<meta property="og:image" itemprop="image" content="{{ settings.file_server.server_url }}/_/image_render?path={{ relative_path }}">
-<meta name="twitter:card" content="summary_large_image">{% endif %}
+<meta name="twitter:card" content="summary_large_image">
+<meta property="twitter:image:src" content="{{ settings.file_server.server_url }}/_/image_render?path={{ relative_path }}">{% endif %}
