@@ -83,19 +83,23 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
         if not settings.file_server.show_dot_files:
             if _file.name.startswith('.'):
                 continue
+        try:
+            stat = _file.stat()  # Query the file stats before doing any parsing as broken symlinks will kill it.
+        except FileNotFoundError:
+            continue
         file = dict()
         file['name'] = _file.name
         file['is_file'] = _file.is_file()
         file['path'] = urllib.parse.quote(os.path.join('/', settings.file_server.base_path, relative_path.lstrip('/'),
                                                        _file.name))
-        file['modified_at_raw'] = _file.stat().st_mtime
-        file['modified_at'] = datetime.fromtimestamp(_file.stat().st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
-        if int(_file.stat().st_size) == 0:
+        file['modified_at_raw'] = stat.st_mtime
+        file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
+        if int(stat.st_size) == 0:
             file['size'] = '0 B'
         else:
-            dec = int(math.floor(math.log(int(_file.stat().st_size), 1024)))
+            dec = int(math.floor(math.log(int(stat.st_size), 1024)))
             i = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')[dec]
-            s = round(int(_file.stat().st_size) / math.pow(1024, dec), 2)
+            s = round(int(stat.st_size) / math.pow(1024, dec), 2)
             file['size'] = '%s %s' % (s, i)
         if _file.is_file():
             file['extension'] = pathlib.Path(os.path.join(full_path, _file.name)).suffix.lstrip('.')
