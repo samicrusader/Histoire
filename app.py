@@ -7,7 +7,6 @@ import os
 import pathlib
 import urllib.parse
 import yaml
-import yurl
 from configparser import Settings
 from datetime import datetime
 from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response
@@ -121,7 +120,7 @@ def page_render():
     elif actual_path != '/' and not actual_path.endswith('/'):
         return redirect(f'/_/image_render?path={actual_path}/', 302)
     x, full_path, actual_path = verify_path(actual_path)
-    if not x or os.path.isfile(full_path) or \
+    if not x or not os.path.exists(full_path) or os.path.isfile(full_path) or \
             os.path.isfile(os.path.join(full_path, 'index.htm')) or \
             os.path.isfile(os.path.join(full_path, 'index.html')):
         abort(404)
