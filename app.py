@@ -64,7 +64,7 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
     for _file in os.scandir(full_path):
         if not settings.file_server.show_dot_files:
             if _file.name.startswith('.'):
-                pass
+                continue
         file = dict()
         file['name'] = _file.name
         file['is_file'] = _file.is_file()
