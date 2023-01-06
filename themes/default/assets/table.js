@@ -39,7 +39,7 @@
                     case 3:
                         col = "size"
                         break
-                    case _:
+                    default:
                         return
                 }
                 // There is some bug in this table sorting library. I have to swap these around. No clue why.
@@ -47,7 +47,7 @@
                     case "ascending":
                         sort = "descending";
                         break
-                    case _:
+                    default:
                         sort = "ascending";
                         break
                 }
