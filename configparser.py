@@ -10,6 +10,10 @@ class FileServer(BaseModel):
     base_path: Optional[str] = None
     theme: Optional[str] = os.path.join(app_path, 'themes', 'default')
     show_dot_files: Optional[bool] = False
+    enable_page_thumbnail: Optional[bool] = False
+    server_url: Optional[str] = 'http://127.0.0.1:5000'
+    thumbimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'thumbimage')
+    wkhtmltoimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'wkhtmltoimage')
 
     @validator('serve_path', allow_reuse=True)
     def serve_path_exists(cls, path):
@@ -25,6 +29,11 @@ class FileServer(BaseModel):
         elif not os.path.exists(os.path.join(base_path, 'assets')):
             raise ValueError(f'Path {os.path.join(base_path, "assets")} does not exist')
         return base_path
+
+    @validator('server_url')
+    def remove_server_url_slash(cls, url):
+        if url.endswith('/'):
+            return url.rstrip('/')
 
 
 class Settings(BaseSettings):

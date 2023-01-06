@@ -1,12 +1,16 @@
+import base64
+import imgkit
 import logging
+import jinja2
 import math
 import os
 import pathlib
 import urllib.parse
 import yaml
+import yurl
 from configparser import Settings
 from datetime import datetime
-from flask import Flask, abort, send_from_directory, render_template, redirect
+from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response
 from typing import Union
 
 # Config
@@ -29,6 +33,14 @@ except yaml.YAMLError as e:
 
 app = Flask(__name__, static_url_path='/_/assets', static_folder=os.path.join(settings.file_server.theme, 'assets'),
             root_path=settings.file_server.base_path, instance_relative_config=False)
+app.jinja_loader = jinja2.ChoiceLoader([
+    app.jinja_loader,
+    jinja2.FileSystemLoader([
+        settings.file_server.theme,
+        os.path.join(os.path.dirname(os.path.realpath(__file__)), 'templates'),
+    ])
+])
+app.jinja_env.globals.update(settings=settings, os=os, version='1.0')
 
 
 def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
@@ -70,6 +82,48 @@ def verify_path(actual_path: str):
     if not check:
         return False, None, None, None
     return check, base_path, full_path, f'/{actual_path}/'
+
+
+@app.route('/_/image_render')
+def page_render():
+    if not settings.file_server.enable_page_thumbnail:
+        abort(404)
+    if not os.path.exists(settings.file_server.thumbimage_cache_dir):
+        os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
+    elif not os.path.exists(settings.file_server.wkhtmltoimage_cache_dir):
+        os.makedirs(settings.file_server.wkhtmltoimage_cache_dir, exist_ok=True)
+
+    actual_path = request.args.get('path', None)
+    if not actual_path.endswith('/'):
+        return redirect(f'/_/image_render?path={actual_path}/', 302)
+    if actual_path:
+        x, base_path, full_path, actual_path = verify_path(actual_path)
+        if not x or os.path.isfile(full_path) or \
+                os.path.isfile(os.path.join(full_path, 'index.htm')) or \
+                os.path.isfile(os.path.join(full_path, 'index.html')):
+            abort(404)
+    else:
+        abort(500)
+
+    fn = os.path.join(settings.file_server.thumbimage_cache_dir,
+                      base64.urlsafe_b64encode(actual_path.encode()).decode())
+    if os.path.exists(fn):
+        fh = open(fn, 'rb')
+        i = fh.read()
+        fh.close()
+    else:
+        url = str(yurl.URL(settings.file_server.server_url) + yurl.URL(actual_path.strip('/')))
+        try:
+            i = imgkit.from_url(url, False, options={
+                'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
+                'enable-local-file-access': '', 'height': 550, 'log-level': 'error', 'width': 980, 'quiet': ''
+            })
+        except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
+            i = err.args[1]
+        fh = open(fn, 'wb')
+        fh.write(i)
+        fh.close()
+    return make_response(i, 200, {'Content-Type': 'image/jpeg'})
 
 
 @app.route('/')
