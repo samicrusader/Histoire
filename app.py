@@ -87,6 +87,26 @@ def verify_path(path: str):
     return check, full_path, actual_path
 
 
+def generate_breadcrumb(path: str):
+    html = '<ol class="breadcrumb">\n'
+    html += '    <li>Index of</li>'
+    if path != '/':
+        html += '    <li><a href="/">/</a></li>\n'
+        paths = list(filter(None, path.split('/')))
+        print(paths)
+        overall = '/'
+        for _path in paths:
+            overall += f'{_path}/'
+            if _path == paths[-1]:  # check for last path
+                html += f'    <li class="active">{_path}</li>\n'
+            else:
+                html += f'    <li><a href="{overall}">{_path}</a></li>\n'
+    else:
+        html += '    <li class="active">/</li>\n'
+    html += '</ol>'
+    return html
+
+
 @app.route('/_/image_render')
 def page_render():
     if not settings.file_server.enable_page_thumbnail:
@@ -146,7 +166,8 @@ def serve_dir(actual_path):
                            relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
                            modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
                            .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
-                           files=dir_walk(actual_path, full_path), page='listing')
+                           files=dir_walk(actual_path, full_path), page='listing',
+                           breadcrumb=generate_breadcrumb(actual_path))
 
 
 @app.route('/<path:actual_path>')
