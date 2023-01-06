@@ -23,6 +23,10 @@ mimetypes.add_type('text/markdown', '.md')
 mimetypes.add_type('text/plain', '.inf')
 mimetypes.add_type('text/plain', '.ini')
 mimetypes.add_type('text/plain', '.conf')
+mimetypes.add_type('video/mp4', '.mov')
+mimetypes.add_type('video/webm', '.mkv')
+mimetypes.add_type('video/mp2t', '.ts')  # while this is mpeg2-ts it's also typescript, but who is indexing typescript
+mimetypes.add_type('video/mp2t', '.m2ts')
 
 # Config
 config_file = os.environ.get('HISTOIRE_CONFIG', './config.yaml')
