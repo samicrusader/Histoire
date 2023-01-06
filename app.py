@@ -93,7 +93,6 @@ def generate_breadcrumb(path: str):
     if path != '/':
         html += '    <li><a href="/">/</a></li>\n'
         paths = list(filter(None, path.split('/')))
-        print(paths)
         overall = '/'
         for _path in paths:
             overall += f'{_path}/'
@@ -134,7 +133,7 @@ def page_render():
         i = fh.read()
         fh.close()
     else:
-        url = str(yurl.URL(settings.file_server.server_url) + yurl.URL(actual_path.strip('/')))
+        url = os.path.join(settings.file_server.server_url + f'/{actual_path.strip("/")}/')
         try:
             i = imgkit.from_url(url, False, options={
                 'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
@@ -167,7 +166,8 @@ def serve_dir(actual_path):
                            modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
                            .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
                            files=dir_walk(actual_path, full_path), page='listing',
-                           breadcrumb=generate_breadcrumb(actual_path))
+                           breadcrumb=(generate_breadcrumb(actual_path)
+                                       if settings.file_server.use_interactive_breadcrumb else ''))
 
 
 @app.route('/<path:actual_path>')

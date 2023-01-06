@@ -1,4 +1,8 @@
+{% if settings.file_server.use_interactive_breadcrumb %}
 <h3 class="ui header shift-left">{{ breadcrumb|safe }}</h3>
+{% else %}
+<h3 class="ui header shift-left">Index of {{ relative_path }}</h3>
+{% endif %}
 <table class="file-listing">
     <thead>
         <tr>
