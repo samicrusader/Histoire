@@ -75,7 +75,7 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
 
 def verify_path(actual_path: str):
     if actual_path == '/':
-        return True, '/', settings.file_server.serve_path, '/'
+        return True, settings.file_server.serve_path, settings.file_server.serve_path, '/'
     base_path = os.path.abspath(settings.file_server.serve_path)
     full_path = os.path.abspath(os.path.join(base_path, actual_path))
     check = bool(full_path.startswith(base_path) or not os.path.exists(full_path))
@@ -137,9 +137,9 @@ def serve_dir(actual_path):
     if not x or not os.path.isdir(full_path):
         abort(404)
     if os.path.isfile(os.path.join(full_path, 'index.htm')):
-        return send_from_directory(os.path.join(base_path, actual_path), 'index.htm')
+        return send_from_directory(os.path.join(base_path, actual_path.rstrip('/')), 'index.htm')
     elif os.path.isfile(os.path.join(full_path, 'index.html')):
-        return send_from_directory(os.path.join(base_path, actual_path), 'index.html')
+        return send_from_directory(os.path.join(base_path, actual_path.rstrip('/')), 'index.html')
     return render_template('base.html',
                            relative_path=f'/{actual_path.lstrip("/")}',
                            modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
