@@ -81,7 +81,7 @@ def verify_path(actual_path: str):
     check = bool(full_path.startswith(base_path) or not os.path.exists(full_path))
     if not check:
         return False, None, None, None
-    return check, base_path, full_path, f'/{actual_path}/'
+    return check, base_path, full_path, (f'{actual_path}/' if os.path.isdir(full_path) else f'{actual_path}')
 
 
 @app.route('/_/image_render')
@@ -137,11 +137,11 @@ def serve_dir(actual_path):
     if not x or not os.path.isdir(full_path):
         abort(404)
     if os.path.isfile(os.path.join(full_path, 'index.htm')):
-        return send_from_directory(base_path, os.path.join(actual_path, 'index.htm'))
+        return send_from_directory(os.path.join(base_path, actual_path), 'index.htm')
     elif os.path.isfile(os.path.join(full_path, 'index.html')):
-        return send_from_directory(base_path, os.path.join(actual_path, 'index.html'))
+        return send_from_directory(os.path.join(base_path, actual_path), 'index.html')
     return render_template('base.html',
-                           relative_path=actual_path, files=dir_walk(actual_path, full_path), page='listing')
+                           relative_path=f'/{actual_path}', files=dir_walk(actual_path, full_path), page='listing')
 
 
 @app.route('/<path:actual_path>')
