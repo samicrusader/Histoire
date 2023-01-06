@@ -1,0 +1,287 @@
+/*noinspection CssUnknownTarget*/ @import url('https://koruri.chillout.chat/koruri.css');
+/*noinspection CssUnknownTarget*/ @import url('https://cdn.jsdelivr.net/npm/@xz/fonts@1/serve/mononoki.min.css');
+
+body {
+    color: white;
+    /* Store your backgrounds in the assets directory, otherwise the image renderer will break.
+       Use a web path if pulling from an external location. Your speeds will suffer though. */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("unnamed.jpg");
+    background-attachment: fixed;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #060606;
+    position: relative;
+    margin: 0;
+}
+
+/* UI */
+/* UI: Container */
+div.ui.container {
+    border-radius: .25em;
+    padding: 1em;
+}
+
+div.ui.container:last-child {
+    margin-bottom: 6em;
+}
+
+div.ui.container a {
+    color: #d6d0d0;
+}
+
+div.ui.container a[href] {
+    color: pink;
+    text-shadow: 0 0 32px black;
+}
+
+div.ui.container img, a {
+    display: inline-block;
+}
+
+div.ui.container p {
+    font-size: 16px;
+}
+
+div.ui.container p.center {
+    text-align: center;
+}
+
+/* UI Container: Top Menu */
+div.ui.container img.logo {
+    display: block;
+    max-height: 15em;
+    margin: auto;
+}
+
+div.ui.container div.menu {
+    align-items: center;
+    justify-content: center;
+    display: flex;
+    font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
+    margin-bottom: 1em;
+    flex-wrap: wrap;
+}
+
+div.ui.container div.menu div.break {
+    flex-basis: 100%;
+    height: 0;
+}
+
+div.ui.container div.menu a[href] {
+    display: block;
+    padding: 1em;
+    width: 140px;
+    text-align: center;
+    text-transform: uppercase;
+    color: #d6d0d0;
+    border-bottom-width: 5px;
+    border-bottom-style: solid;
+    border-bottom-color: transparent;
+}
+
+div.ui.container div.menu  a:nth-child(1) {
+    border-bottom-color: #ffffff;
+}
+
+div.ui.container div.menu  a:nth-child(2) {
+    border-bottom-color: #d1d1d1;
+}
+
+div.ui.container div.menu  a:nth-child(3) {
+    border-bottom-color: #aeaeae;
+}
+
+div.ui.container div.menu  a:nth-child(4) {
+    border-bottom-color: #999999;
+}
+
+div.ui.container div.menu  a:nth-child(5) {
+    border-bottom-color: #717171;
+}
+
+div.ui.container div.menu  a:nth-child(6) {
+    border-bottom-color: #444444;
+}
+
+div.ui.container div.menu  a:nth-child(7) {
+    border-bottom-color: #363636;
+}
+
+/* UI Container: Text headers */
+div.ui.container h1.ui.header, h2.ui.header, h3.ui.header {
+    text-align: center;
+    font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
+    margin: 0;
+    color: white;
+}
+
+div.ui.container h2.ui.header, div.ui.horizontal.section.divider {
+    color: lightgray !important;
+}
+
+div.ui.container h1.ui.header {
+    font-size: 3em;
+}
+
+div.ui.container h2.ui.header {
+    font-size: 1.14285714rem;
+    font-weight: 400;
+    margin-bottom: 1em;
+}
+
+div.ui.container h3.ui.header.breadcrumb {
+    font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
+}
+
+div.ui.container h3.ui.header.shift-left {
+    text-align: left;
+}
+
+div.ui.container div.ui.horizontal.section.divider {
+    color: white;
+    font-weight: 700;
+}
+
+/* UI Container: Blockquote */
+div.ui.container blockquote {
+    margin-left: .5em;
+    padding-left: 1em;
+    border-left: 5px solid #8888
+}
+
+/* UI Container: File Search Box */
+div.ui.container .ui.search {
+    margin-top: 1em;
+    margin-bottom: 1em;
+}
+
+div.ui.container .ui.search input.prompt {
+    background-color: #181818;
+    color: white;
+}
+
+div.ui.container .ui.search .results {
+    width: 100%;
+}
+
+div.ui.container .ui.search .results .message .header {
+    color: white;
+}
+
+div.ui.container .ui.search .results .message .description {
+    color: white;
+}
+
+div.ui.container .ui.search .results .result { 
+    padding: .4em 1em;
+}
+
+div.ui.container .ui.search input[type=text] {
+    display: block; width: 100%;
+}
+
+div.ui.container .ui.search .results {
+    border: 1px solid black;
+    background-color: #181818;
+}
+
+div.ui.container .ui.search .results .result:hover {
+    background-color: grey;
+}
+
+div.ui.container .ui.search .results .result .content .title {
+    color: white;
+    font-family: 'mononoki', 'Consolas', 'Menlo', 'SF Mono Regular', monospace;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+div.ui.container .ui.search .results .result .content .description {
+    color: white;
+}
+
+/* UI Container: File Listing */
+div.ui.container table.file-listing {
+    font-family: 'mononoki', 'Consolas', 'Menlo', 'SF Mono Regular', monospace;
+    table-layout: auto;
+}
+
+div.ui.container table.file-listing thead tr th {
+    text-align: left;
+}
+
+div.ui.container table.file-listing tbody tr td {
+    padding: 0 .7em;
+}
+
+div.ui.container table.file-listing tbody tr td.filename {
+    width: 100%;
+    white-space: normal;
+    word-break: break-all;
+    overflow-wrap: break-word;
+}
+
+div.ui.container table.file-listing .date-modified, .file-size, i.info {
+    white-space: nowrap;
+}
+
+@media screen and (max-width: 960px) {
+    div.ui.container table.file-listing .date-modified {
+        display: none;
+    }
+
+    div.ui.container table.file-listing tbody tr td {
+        padding: 0 .7em 0 0;
+    }
+}
+
+/* https://stackoverflow.com/a/10853277 */
+div.ui.container table.file-listing tbody tr td.fitwidth {
+    width: 1px;
+}
+
+div.ui.container table.file-listing tbody tr td i.info {
+    width: 0;
+}
+
+@media screen and (max-width: 960px) {
+    div.ui.container table.file-listing .info {
+        display: none;
+    }
+}
+
+/* UI Container: Bulk Download Footer */
+div.ui.container div.dlbox {
+    background-color: #3339;
+    border-radius: .25em;
+    padding: 1em;
+    margin-top: 1em;
+    min-width: 100%;
+    white-space: normal;
+}
+
+/* UI: Hash Popup */
+div.ui.basic.modal div.ui.icon.header {
+    font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
+}
+
+div.ui.basic.modal h4 {
+    font-family: 'mononoki', 'Consolas', 'Menlo', 'SF Mono Regular', monospace;
+    font-size: 14px;
+}
+
+div.ui.basic.modal div.ui.label {
+    background-color: #181818;
+    color: lightgray;
+    font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+div.ui.basic.modal input {
+    background-color: #3339;
+    color: white;
+    font-family: 'mononoki', 'Consolas', 'Menlo', 'SF Mono Regular', monospace;
+    font-size: 14px;
+}

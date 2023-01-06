@@ -1,0 +1,35 @@
+<h3 class="ui header shift-left breadcrumb">Index of {{ relative_path }}</h3>
+<table class="file-listing">
+    <thead>
+        <tr>
+            <!--th class="collapsing info fitwidth" data-sort-method="none" role="columnheader"></th-->
+            <th class="collapsing fitwidth" data-sort-method="none" role="columnheader"></th>
+            <th class="collapsing" role="columnheader">Name</th>
+            <th class="collapsing date-modified fitwidth" data-sort-method="number" role="columnheader">Last Modified</th>
+            <th class="collapsing fitwidth" data-sort-method="filesize" role="columnheader">Size</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr data-sort-method="none">
+            <!--td class="info"></td-->
+            <td></td>
+            <td><a href="../">Parent Directory</a></td>
+        </tr>
+        {% for file in files %}
+        <tr>
+            <!--td data-sort-method="none" class="info">
+                <i class="info circle icon"></i>
+            </td-->
+            <td>
+                <span class="fiv-sqo fiv-icon-{{ file['extension'] }}"></span>
+            </td>
+            <td class="filename" data-sort="{{ file['is_file'] }}_{{ file['name'] }}">
+                <a class="overflow" href="{{ file['path'] }}">{{ file['name'] }}</a>
+            </td>
+            <td class="fitwidth date-modified" data-sort="{{ file['modified_at_raw'] }}">{{ file['modified_at'] }}</td>
+            <td class="fitwidth file-size">{{ file['size'] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<script src="/_/assets/table.js"></script>
