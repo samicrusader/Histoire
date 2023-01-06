@@ -73,15 +73,18 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
     return sorted(folders, key=lambda _i: _i['name'].lower()) + sorted(files, key=lambda _i: _i['name'].lower())
 
 
-def verify_path(actual_path: str):
-    if actual_path == '/':
-        return True, settings.file_server.serve_path, settings.file_server.serve_path, '/'
+def verify_path(path: str):
+    if path == '/':
+        return True, settings.file_server.serve_path, '/'
+    else:
+        path = path.lstrip('/')
     base_path = os.path.abspath(settings.file_server.serve_path)
-    full_path = os.path.abspath(os.path.join(base_path, actual_path))
+    full_path = os.path.abspath(os.path.join(base_path, path.lstrip('/')))
     check = bool(full_path.startswith(base_path) or not os.path.exists(full_path))
     if not check:
-        return False, None, None, None
-    return check, base_path, full_path, (f'{actual_path}/' if os.path.isdir(full_path) else f'{actual_path}')
+        return False, None, None
+    actual_path = (path+'/' if os.path.isdir(full_path) else path)
+    return check, full_path, actual_path
 
 
 @app.route('/_/image_render')
@@ -94,16 +97,15 @@ def page_render():
         os.makedirs(settings.file_server.wkhtmltoimage_cache_dir, exist_ok=True)
 
     actual_path = request.args.get('path', None)
-    if not actual_path.endswith('/'):
-        return redirect(f'/_/image_render?path={actual_path}/', 302)
-    if actual_path:
-        x, base_path, full_path, actual_path = verify_path(actual_path)
-        if not x or os.path.isfile(full_path) or \
-                os.path.isfile(os.path.join(full_path, 'index.htm')) or \
-                os.path.isfile(os.path.join(full_path, 'index.html')):
-            abort(404)
-    else:
+    if not actual_path:
         abort(500)
+    elif actual_path != '/' and not actual_path.endswith('/'):
+        return redirect(f'/_/image_render?path={actual_path}/', 302)
+    x, full_path, actual_path = verify_path(actual_path)
+    if not x or os.path.isfile(full_path) or \
+            os.path.isfile(os.path.join(full_path, 'index.htm')) or \
+            os.path.isfile(os.path.join(full_path, 'index.html')):
+        abort(404)
 
     fn = os.path.join(settings.file_server.thumbimage_cache_dir,
                       base64.urlsafe_b64encode(actual_path.encode()).decode())
@@ -133,15 +135,15 @@ def root_directory():
 
 @app.route('/<path:actual_path>/')
 def serve_dir(actual_path):
-    x, base_path, full_path, actual_path = verify_path(actual_path)
+    x, full_path, actual_path = verify_path(actual_path)
     if not x or not os.path.isdir(full_path):
         abort(404)
     if os.path.isfile(os.path.join(full_path, 'index.htm')):
-        return send_from_directory(os.path.join(base_path, actual_path.rstrip('/')), 'index.htm')
+        return send_from_directory(full_path, 'index.htm')
     elif os.path.isfile(os.path.join(full_path, 'index.html')):
-        return send_from_directory(os.path.join(base_path, actual_path.rstrip('/')), 'index.html')
+        return send_from_directory(full_path, 'index.html')
     return render_template('base.html',
-                           relative_path=f'/{actual_path.lstrip("/")}',
+                           relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
                            modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
                            .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
                            files=dir_walk(actual_path, full_path), page='listing')
@@ -149,12 +151,12 @@ def serve_dir(actual_path):
 
 @app.route('/<path:actual_path>')
 def serve_file(actual_path):
-    x, base_path, full_path, actual_path = verify_path(actual_path)
+    x, full_path, actual_path = verify_path(actual_path)
     if not x:
         abort(404)
     elif os.path.isdir(full_path):
         return redirect(actual_path, 302)
-    return send_from_directory(base_path, actual_path)
+    return send_from_directory(settings.file_server.serve_path, actual_path)
 
 
 if __name__ == '__main__':
