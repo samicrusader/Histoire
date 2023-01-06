@@ -1,5 +1,4 @@
 import os
-import yurl
 from typing import Optional
 from pydantic import BaseModel, BaseSettings, validator
 
@@ -8,7 +7,7 @@ app_path = os.path.realpath(os.path.dirname(__file__))
 
 class FileServer(BaseModel):
     serve_path: str
-    base_path: Optional[str] = "/"
+    base_path: Optional[str] = ""
     theme: Optional[str] = os.path.join(app_path, 'themes', 'default')
     show_dot_files: Optional[bool] = False
     use_interactive_breadcrumb: Optional[bool] = True
@@ -17,7 +16,7 @@ class FileServer(BaseModel):
     thumbimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'thumbimage')
     wkhtmltoimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'wkhtmltoimage')
 
-    @validator('serve_path', allow_reuse=True)
+    @validator('serve_path')
     def serve_path_exists(cls, path):
         if not os.path.exists(path):
             raise ValueError(f'Path {path} does not exist')
@@ -27,6 +26,7 @@ class FileServer(BaseModel):
     def base_path_validate(cls, path):
         if path.endswith('/'):
             return path.rstrip('/')
+        return path
 
     @validator('theme')
     def theme_exists(cls, path):
@@ -38,10 +38,12 @@ class FileServer(BaseModel):
         return base_path
 
     @validator('server_url')
-    def server_url_validate(cls, url):
+    def server_url_validate(cls, url, values, **kwargs):
         if url.endswith('/'):
             url = url.rstrip('/')
-        return str(yurl.URL(url) + yurl.URL(cls.base_path))
+        if 'base_path' in values and values['base_path']:
+            return os.path.join(url, values['base_path'].lstrip('/'))
+        return url
 
 
 class Settings(BaseSettings):

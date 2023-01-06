@@ -46,8 +46,26 @@ except yaml.YAMLError as e:
     logging.critical(config_file_message.format(message=': ' + str(e)), exc_info=True)
     exit(1)
 
+
+# Flask
+class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
+    def __init__(self, app, prefix=''):
+        self.app = app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+        if environ['PATH_INFO'].startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
+            environ['SCRIPT_NAME'] = self.prefix
+            return self.app(environ, start_response)
+        else:
+            start_response('404', [('Content-Type', 'text/plain')])
+            return ['404 Not Found'.encode()]
+
+
 app = Flask(__name__, static_url_path='/_/assets', static_folder=os.path.join(settings.file_server.theme, 'assets'),
-            root_path=settings.file_server.base_path, instance_relative_config=False)
+            instance_relative_config=False)
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=settings.file_server.base_path)
 app.jinja_loader = jinja2.ChoiceLoader([
     app.jinja_loader,
     jinja2.FileSystemLoader([
@@ -68,7 +86,8 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
         file = dict()
         file['name'] = _file.name
         file['is_file'] = _file.is_file()
-        file['path'] = urllib.parse.quote(os.path.join('/', relative_path, _file.name))
+        file['path'] = urllib.parse.quote(os.path.join('/', settings.file_server.base_path, relative_path.lstrip('/'),
+                                                       _file.name))
         file['modified_at_raw'] = _file.stat().st_mtime
         file['modified_at'] = datetime.fromtimestamp(_file.stat().st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
         if int(_file.stat().st_size) == 0:
@@ -123,15 +142,16 @@ def generate_breadcrumb(path: str):
     html = '<ol class="breadcrumb">\n'
     html += '    <li>Index of</li>'
     if path != '/':
-        html += '    <li><a href="/">/</a></li>\n'
+        html += f'    <li><a href="{settings.file_server.base_path}/">/</a></li>\n'
         paths = list(filter(None, path.split('/')))
-        overall = '/'
+        overall = settings.file_server.base_path+'/'
         for _path in paths:
             overall += f'{_path}/'
             if _path == paths[-1]:  # check for last path
                 html += f'    <li class="active">{_path}</li>\n'
             else:
                 html += f'    <li><a href="{overall}">{_path}</a></li>\n'
+        print(overall)
     else:
         html += '    <li class="active">/</li>\n'
     html += '</ol>'
@@ -151,7 +171,7 @@ def page_render():
     if not actual_path:
         abort(500)
     elif actual_path != '/' and not actual_path.endswith('/'):
-        return redirect(f'/_/image_render?path={actual_path}/', 302)
+        return redirect(os.path.join(settings.file_server.server_url, f'_/image_render?path={actual_path}/'), 302)
     x, full_path, actual_path = verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isfile(full_path) or \
             os.path.isfile(os.path.join(full_path, 'index.htm')) or \
@@ -209,8 +229,8 @@ def serve_file(actual_path):
         abort(404)
     elif os.path.isdir(full_path):
         return redirect(actual_path, 302)
-    return send_from_directory(settings.file_server.serve_path, actual_path)
 
+    return send_from_directory(settings.file_server.serve_path, actual_path)
 
 if __name__ == '__main__':
     app.run()
