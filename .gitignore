@@ -9,6 +9,4 @@ instance/
 
 # Histoire
 cache/
-themes/
-!themes/default
 config.yaml
