@@ -8,7 +8,7 @@ app_path = os.path.realpath(os.path.dirname(__file__))
 
 class FileServer(BaseModel):
     serve_path: str
-    base_path: Optional[str] = None
+    base_path: Optional[str] = "/"
     theme: Optional[str] = os.path.join(app_path, 'themes', 'default')
     show_dot_files: Optional[bool] = False
     use_interactive_breadcrumb: Optional[bool] = True

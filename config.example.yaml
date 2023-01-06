@@ -1,12 +1,14 @@
 file_server:
   # serve_path is where the data to be served is located (required)
   serve_path: "/srv/http"
-  # base_path is the base path of the web directory ("/histoire" = "http://example.com/histoire/example/path") (optional, defaults to None)
+  # base_path is the base path of the web directory ("/histoire" = "http://example.com/histoire/example/path") (optional, defaults to "/")
   #base_path: "/"
   # theme points to a folder with theme files, see README.md for information (optional, defaults to "default")
   #theme: "default"
   # show_dot_files says what it does on the tin (optional, default is false)
   #show_dot_files: false
+  # use_interactive_breadcrumb allows you to disable the interactive breadcrumb if it's not to your taste
+  #use_interactive_breadcrumb: true
 
   # enable_page_thumbnail enables embed thumbnails for each folder index (optional, default is false, there is some setup required see README.md)
   #enable_page_thumbnail: false

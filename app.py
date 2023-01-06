@@ -2,7 +2,9 @@ import base64
 import imgkit
 import logging
 import jinja2
+import json
 import math
+import mimetypes
 import os
 import pathlib
 import urllib.parse
@@ -11,6 +13,16 @@ from configparser import Settings
 from datetime import datetime
 from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response
 from typing import Union
+
+# Handle mimetypes
+icon_db = json.load(open(os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'templates', 'listing', 'mimetypes.json')))
+mimetypes.init()
+mimetypes.add_type('text/json', '.json')
+mimetypes.add_type('text/markdown', '.md')
+mimetypes.add_type('text/plain', '.inf')
+mimetypes.add_type('text/plain', '.ini')
+mimetypes.add_type('text/plain', '.conf')
 
 # Config
 config_file = os.environ.get('HISTOIRE_CONFIG', './config.yaml')
@@ -64,9 +76,26 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
             file['size'] = '%s %s' % (s, i)
         if _file.is_file():
             file['extension'] = pathlib.Path(os.path.join(full_path, _file.name)).suffix.lstrip('.')
+            if file['extension'].lower() in icon_db:
+                file['icon'] = file['extension'].lower()
+            else:
+                mimetype = mimetypes.guess_type(os.path.join(full_path, _file.name))
+                if not mimetype[0]:
+                    file['icon'] = 'bin'
+                else:
+                    match mimetype[0].split('/')[0]:
+                        case 'application': file['icon'] = 'bin'
+                        case 'text': file['icon'] = 'txt'
+                        case 'video': file['icon'] = 'mp4'
+                        case 'image': file['icon'] = 'png'
+                        case 'audio': file['icon'] = '3ga'
+                        case 'message': file['icon'] = 'txt'
+                        case 'font': file['icon'] = 'otf'
+                        case _: file['icon'] = 'bin'
             files.append(file)
         else:
-            file['extension'] = 'folder'
+            file['extension'] = ''
+            file['icon'] = 'folder'
             file['path'] += '/'
             folders.append(file)
     return sorted(folders, key=lambda _i: _i['name'].lower()) + sorted(files, key=lambda _i: _i['name'].lower())
