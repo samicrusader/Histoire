@@ -1,4 +1,5 @@
 import os
+import yurl
 from typing import Optional
 from pydantic import BaseModel, BaseSettings, validator
 
@@ -21,6 +22,11 @@ class FileServer(BaseModel):
             raise ValueError(f'Path {path} does not exist')
         return path
 
+    @validator('base_path')
+    def base_path_validate(cls, path):
+        if path.endswith('/'):
+            return path.rstrip('/')
+
     @validator('theme')
     def theme_exists(cls, path):
         base_path = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'themes', path)
@@ -31,9 +37,10 @@ class FileServer(BaseModel):
         return base_path
 
     @validator('server_url')
-    def remove_server_url_slash(cls, url):
+    def server_url_validate(cls, url):
         if url.endswith('/'):
-            return url.rstrip('/')
+            url = url.rstrip('/')
+        return str(yurl.URL(url) + yurl.URL(cls.base_path))
 
 
 class Settings(BaseSettings):
