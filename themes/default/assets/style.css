@@ -5,7 +5,7 @@ body {
     color: white;
     /* Store your backgrounds in the assets directory, otherwise the image renderer will break.
        Use a web path if pulling from an external location. Your speeds will suffer though. */
-    background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("unnamed.jpg");
+    background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("wallhaven-yxx7j7.jpg");
     background-attachment: fixed;
     background-size: cover;
     background-position: center;
