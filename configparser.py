@@ -11,6 +11,7 @@ class FileServer(BaseModel):
     theme: Optional[str] = os.path.join(app_path, 'themes', 'default')
     show_dot_files: Optional[bool] = False
     use_interactive_breadcrumb: Optional[bool] = True
+    enable_header_files: Optional[bool] = True
     enable_page_thumbnail: Optional[bool] = False
     server_url: Optional[str] = 'http://127.0.0.1:5000'
     thumbimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'thumbimage')

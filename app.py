@@ -220,22 +220,23 @@ def serve_dir(actual_path):
         return send_from_directory(full_path, 'index.html')
     header_html = None
     footer_html = None
-    for file in ['.header', '.header.md', '.header.htm', '.header.html', '.header.txt', '_h5ai.header.html',
-                 '.footer', '.footer.md', '.footer.htm', '.footer.html', '.header.txt', '_h5ai.footer.html']:
-        if not os.path.isfile(os.path.join(full_path, file))\
-                or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
-            continue
-        data = open(os.path.join(full_path, file), 'r').read()
-        if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
-            pass
-        elif file.endswith('.md'):
-            data = markdown.markdown(data)
-        elif file.endswith('.txt') or file == '.header' or file == '.footer':
-            data = f'<p>{markupsafe.escape(data)}</p>'
-        if file.find('header') > -1:
-            header_html = data
-        elif file.find('footer') > -1:
-            footer_html = data
+    if settings.file_server.enable_header_files:
+        for file in ['.header', '.header.md', '.header.htm', '.header.html', '.header.txt', '_h5ai.header.html',
+                     '.footer', '.footer.md', '.footer.htm', '.footer.html', '.header.txt', '_h5ai.footer.html']:
+            if not os.path.isfile(os.path.join(full_path, file))\
+                    or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
+                continue
+            data = open(os.path.join(full_path, file), 'r').read()
+            if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
+                pass
+            elif file.endswith('.md'):
+                data = markdown.markdown(data)
+            elif file.endswith('.txt') or file == '.header' or file == '.footer':
+                data = f'<p>{markupsafe.escape(data)}</p>'
+            if file.find('header') > -1:
+                header_html = data
+            elif file.find('footer') > -1:
+                footer_html = data
     return render_template('base.html',
                            relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
                            modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)

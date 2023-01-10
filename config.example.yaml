@@ -7,12 +7,14 @@ file_server:
   #theme: "default"
   # show_dot_files says what it does on the tin (optional, default is false)
   #show_dot_files: false
-  # use_interactive_breadcrumb allows you to disable the interactive breadcrumb if it's not to your taste
+  # use_interactive_breadcrumb allows you to disable the interactive breadcrumb if it's not to your taste (optional, defaults to true)
   #use_interactive_breadcrumb: true
+  # enable_header_files lets you enable or disable reading files in each directory to give a header and footer (optional, defaults to true)
+  #enable_header_files: true
 
   # enable_page_thumbnail enables embed thumbnails for each folder index (optional, default is false, there is some setup required see README.md)
   #enable_page_thumbnail: false
-  # server_url is the URL pointing to your web server excluding the base path (optional, default is "http://127.0.0.1:5000")
+  # server_url is the URL pointing to your web server excluding the base path (optional, default is "http://127.0.0.1:5000", you NEED to change this)
   #server_url: "http://127.0.0.1:5000"
   # thumbimage_cache_dir and wkhtmltoimage_cache_dir are cache directories for the page thumbnailing (optional, both point to cache/ in the location of configparser.py)
   #thumbimage_cache_dir: "/tmp/histoire/thumbimage"
