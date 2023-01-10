@@ -32,7 +32,7 @@ from datetime import datetime
 from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response
 from typing import Union
 
-if settings.file_server.enable_image_thumbnail:
+if settings.file_server.enable_image_thumbnail or settings.file_server.enable_video_thumbnail:
     from io import BytesIO
     from PIL import Image
 if settings.file_server.enable_header_files:
@@ -222,6 +222,10 @@ def video_thumbnail():
         os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
 
     actual_path = request.args.get('path', None)
+    try:
+        scale = bool(json.loads(request.args.get('scale', 'false').lower()))
+    except NameError:
+        abort(500)
     if not actual_path:
         abort(500)
     x, full_path, actual_path = verify_path(actual_path)
@@ -242,6 +246,21 @@ def video_thumbnail():
         fh = open(fn, 'wb')
         fh.write(i)
         fh.close()
+    if scale:
+        fn = os.path.join(settings.file_server.thumbimage_cache_dir,
+                          base64.urlsafe_b64encode(actual_path.encode()).decode()+'_scale')
+        if os.path.exists(fn):
+            i = open(fn, 'rb')
+        else:
+            with BytesIO() as bio:
+                img = Image.open(i)
+                img.thumbnail((128, 128))
+                img.save(bio, format='JPEG')
+                bio.seek(0)
+                i = bio.read()
+                fh = open(fn, 'wb')
+                fh.write(i)
+                fh.close()
     return make_response(i, 200, {'Content-Type': 'image/jpeg'})
 
 
