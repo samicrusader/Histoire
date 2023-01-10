@@ -47,67 +47,6 @@ div.ui.container p.center {
     text-align: center;
 }
 
-/* UI Container: Top Menu */
-div.ui.container img.logo {
-    display: block;
-    max-height: 15em;
-    margin: auto;
-}
-
-div.ui.container div.menu {
-    align-items: center;
-    justify-content: center;
-    display: flex;
-    font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
-    margin-bottom: 1em;
-    flex-wrap: wrap;
-}
-
-div.ui.container div.menu div.break {
-    flex-basis: 100%;
-    height: 0;
-}
-
-div.ui.container div.menu a[href] {
-    display: block;
-    padding: 1em;
-    width: 140px;
-    text-align: center;
-    text-transform: uppercase;
-    color: #d6d0d0;
-    border-bottom-width: 5px;
-    border-bottom-style: solid;
-    border-bottom-color: transparent;
-}
-
-div.ui.container div.menu  a:nth-child(1) {
-    border-bottom-color: #ffffff;
-}
-
-div.ui.container div.menu  a:nth-child(2) {
-    border-bottom-color: #d1d1d1;
-}
-
-div.ui.container div.menu  a:nth-child(3) {
-    border-bottom-color: #aeaeae;
-}
-
-div.ui.container div.menu  a:nth-child(4) {
-    border-bottom-color: #999999;
-}
-
-div.ui.container div.menu  a:nth-child(5) {
-    border-bottom-color: #717171;
-}
-
-div.ui.container div.menu  a:nth-child(6) {
-    border-bottom-color: #444444;
-}
-
-div.ui.container div.menu  a:nth-child(7) {
-    border-bottom-color: #363636;
-}
-
 /* UI Container: Text headers */
 div.ui.container h1.ui.header, h2.ui.header, h3.ui.header {
     text-align: center;
@@ -143,11 +82,6 @@ div.ui.container div.ui.header.external-header {
     font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
     font-weight: normal;
     text-align: center;
-}
-
-div.ui.container div.ui.horizontal.section.divider {
-    color: white;
-    font-weight: 700;
 }
 
 /* UI Container: Blockquote */
