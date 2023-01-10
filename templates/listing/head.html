@@ -6,6 +6,6 @@
 <title>Index of {{ relative_path }}</title>
 <meta property="og:title" content="Index of {{ relative_path }}">
 <meta property="article:modified_time" content="{{ modified_time }}" />
-{% if settings.file_server.enable_page_thumbnail %}<meta property="og:image" itemprop="image" content="{{ settings.file_server.server_url }}/_/image_render?path={{ relative_path }}">
+{% if settings.file_server.enable_page_thumbnail %}<meta property="og:image" itemprop="image" content="{{ settings.file_server.server_url }}/_/page_thumbnail?path={{ relative_path }}">
 <meta name="twitter:card" content="summary_large_image">
 <meta property="twitter:image:src" content="{{ settings.file_server.server_url }}/_/image_render?path={{ relative_path }}">{% endif %}

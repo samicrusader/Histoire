@@ -1,36 +1,9 @@
-import base64
-import imgkit
+# Config
 import logging
-import jinja2
-import json
-import math
-import markdown
-import markupsafe
-import mimetypes
 import os
-import pathlib
-import urllib.parse
 import yaml
 from configparser import Settings
-from datetime import datetime
-from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response
-from typing import Union
 
-# Handle mimetypes
-icon_db = json.load(open(os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), 'templates', 'listing', 'mimetypes.json')))
-mimetypes.init()
-mimetypes.add_type('text/json', '.json')
-mimetypes.add_type('text/markdown', '.md')
-mimetypes.add_type('text/plain', '.inf')
-mimetypes.add_type('text/plain', '.ini')
-mimetypes.add_type('text/plain', '.conf')
-mimetypes.add_type('video/mp4', '.mov')
-mimetypes.add_type('video/webm', '.mkv')
-mimetypes.add_type('video/mp2t', '.ts')  # while this is mpeg2-ts it's also typescript, but who is indexing typescript
-mimetypes.add_type('video/mp2t', '.m2ts')
-
-# Config
 config_file = os.environ.get('HISTOIRE_CONFIG', './config.yaml')
 config_file_message = 'Failed to open ' + config_file + '{message}'
 if not os.path.exists(config_file):
@@ -47,6 +20,43 @@ try:
 except yaml.YAMLError as e:
     logging.critical(config_file_message.format(message=': ' + str(e)), exc_info=True)
     exit(1)
+
+import base64
+import jinja2
+import json
+import math
+import mimetypes
+import pathlib
+import urllib.parse
+from datetime import datetime
+from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response
+from typing import Union
+
+if settings.file_server.enable_image_thumbnail:
+    from io import BytesIO
+    from PIL import Image
+if settings.file_server.enable_header_files:
+    import markdown
+    import markupsafe
+if settings.file_server.enable_page_thumbnail:
+    import imgkit
+if settings.file_server.enable_video_thumbnail:
+    import cv2
+    import random
+
+# Handle mimetypes
+icon_db = json.load(open(os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'templates', 'listing', 'mimetypes.json')))
+mimetypes.init()
+mimetypes.add_type('text/json', '.json')
+mimetypes.add_type('text/markdown', '.md')
+mimetypes.add_type('text/plain', '.inf')
+mimetypes.add_type('text/plain', '.ini')
+mimetypes.add_type('text/plain', '.conf')
+mimetypes.add_type('video/mp4', '.mov')
+mimetypes.add_type('video/webm', '.mkv')
+mimetypes.add_type('video/mp2t', '.ts')  # while this is mpeg2-ts it's also typescript, but who is indexing typescript
+mimetypes.add_type('video/mp2t', '.m2ts')
 
 
 # Flask
@@ -83,7 +93,7 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
     files = list()
     for _file in os.scandir(full_path):
         if not settings.file_server.show_dot_files:
-            if _file.name.startswith('.'):
+            if _file.name.startswith('.') or _file.name.startswith('_h5ai'):
                 continue
         try:
             stat = _file.stat()  # Query the file stats before doing any parsing as broken symlinks will kill it.
@@ -163,8 +173,8 @@ def generate_breadcrumb(path: str):
     return html
 
 
-@app.route('/_/image_render')
-def page_render():
+@app.route('/_/page_thumbnail')
+def page_thumbnail():
     if not settings.file_server.enable_page_thumbnail:
         abort(404)
     if not os.path.exists(settings.file_server.thumbimage_cache_dir):
@@ -198,6 +208,69 @@ def page_render():
             })
         except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
             i = err.args[1]
+        fh = open(fn, 'wb')
+        fh.write(i)
+        fh.close()
+    return make_response(i, 200, {'Content-Type': 'image/jpeg'})
+
+
+@app.route('/_/video_thumbnail')
+def video_thumbnail():
+    if not settings.file_server.enable_video_thumbnail:
+        abort(404)
+    if not os.path.exists(settings.file_server.thumbimage_cache_dir):
+        os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
+
+    actual_path = request.args.get('path', None)
+    if not actual_path:
+        abort(500)
+    x, full_path, actual_path = verify_path(actual_path)
+    if not x or not os.path.exists(full_path) or os.path.isdir(full_path) or \
+            not mimetypes.guess_type(full_path)[0].split('/')[0] == 'video':
+        abort(404)
+
+    fn = os.path.join(settings.file_server.thumbimage_cache_dir,
+                      base64.urlsafe_b64encode(actual_path.encode()).decode())
+    if os.path.exists(fn):
+        i = open(fn, 'rb')
+    else:
+        vid = cv2.VideoCapture(full_path)
+        vid.set(cv2.CAP_PROP_POS_FRAMES, (int(vid.get(cv2.CAP_PROP_FRAME_COUNT)) // random.choice(range(2, 10))) - 1)
+        _, frame = vid.read()
+        _, img = cv2.imencode('.jpg', frame)
+        i = img.tobytes()
+        fh = open(fn, 'wb')
+        fh.write(i)
+        fh.close()
+    return make_response(i, 200, {'Content-Type': 'image/jpeg'})
+
+
+@app.route('/_/image_thumbnail')
+def image_thumbnail():
+    if not settings.file_server.enable_image_thumbnail:
+        abort(404)
+    if not os.path.exists(settings.file_server.thumbimage_cache_dir):
+        os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
+
+    actual_path = request.args.get('path', None)
+    if not actual_path:
+        abort(500)
+    x, full_path, actual_path = verify_path(actual_path)
+    if not x or not os.path.exists(full_path) or os.path.isdir(full_path) or \
+            not mimetypes.guess_type(full_path)[0].split('/')[0] == 'image':
+        abort(404)
+
+    fn = os.path.join(settings.file_server.thumbimage_cache_dir,
+                      base64.urlsafe_b64encode(actual_path.encode()).decode())
+    if os.path.exists(fn):
+        i = open(fn, 'rb')
+    else:
+        with BytesIO() as bio:
+            img = Image.open(full_path)
+            img.thumbnail((128, 128))
+            img.save(bio, format='JPEG')
+            bio.seek(0)
+            i = bio.read()
         fh = open(fn, 'wb')
         fh.write(i)
         fh.close()

@@ -14,6 +14,10 @@ file_server:
 
   # enable_page_thumbnail enables embed thumbnails for each folder index (optional, default is false, there is some setup required see README.md)
   #enable_page_thumbnail: false
+  # enable_image_thumbnail enables image thumbnails (optional, default is false)
+  #enable_image_thumbnail: false
+  # enable_video_thumbnail enables video thumbnails (optional, default is false)
+  #enable_video_thumbnail: false
   # server_url is the URL pointing to your web server excluding the base path (optional, default is "http://127.0.0.1:5000", you NEED to change this)
   #server_url: "http://127.0.0.1:5000"
   # thumbimage_cache_dir and wkhtmltoimage_cache_dir are cache directories for the page thumbnailing (optional, both point to cache/ in the location of configparser.py)
