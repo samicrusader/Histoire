@@ -4,6 +4,8 @@ import logging
 import jinja2
 import json
 import math
+import markdown
+import markupsafe
 import mimetypes
 import os
 import pathlib
@@ -49,8 +51,8 @@ except yaml.YAMLError as e:
 
 # Flask
 class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
-    def __init__(self, app, prefix=''):
-        self.app = app
+    def __init__(self, wsgi_app, prefix=''):
+        self.app = wsgi_app
         self.prefix = prefix
 
     def __call__(self, environ, start_response):
@@ -155,7 +157,6 @@ def generate_breadcrumb(path: str):
                 html += f'    <li class="active">{_path}</li>\n'
             else:
                 html += f'    <li><a href="{overall}">{_path}</a></li>\n'
-        print(overall)
     else:
         html += '    <li class="active">/</li>\n'
     html += '</ol>'
@@ -217,13 +218,32 @@ def serve_dir(actual_path):
         return send_from_directory(full_path, 'index.htm')
     elif os.path.isfile(os.path.join(full_path, 'index.html')):
         return send_from_directory(full_path, 'index.html')
+    header_html = None
+    footer_html = None
+    for file in ['.header', '.header.md', '.header.htm', '.header.html', '.header.txt', '_h5ai.header.html',
+                 '.footer', '.footer.md', '.footer.htm', '.footer.html', '.header.txt', '_h5ai.footer.html']:
+        if not os.path.isfile(os.path.join(full_path, file))\
+                or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
+            continue
+        data = open(os.path.join(full_path, file), 'r').read()
+        if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
+            pass
+        elif file.endswith('.md'):
+            data = markdown.markdown(data)
+        elif file.endswith('.txt') or file == '.header' or file == '.footer':
+            data = f'<p>{markupsafe.escape(data)}</p>'
+        if file.find('header') > -1:
+            header_html = data
+        elif file.find('footer') > -1:
+            footer_html = data
     return render_template('base.html',
                            relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
                            modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
                            .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
                            files=dir_walk(actual_path, full_path), page='listing',
                            breadcrumb=(generate_breadcrumb(actual_path)
-                                       if settings.file_server.use_interactive_breadcrumb else ''))
+                                       if settings.file_server.use_interactive_breadcrumb else ''), header=header_html,
+                           footer=footer_html)
 
 
 @app.route('/<path:actual_path>')
@@ -235,6 +255,7 @@ def serve_file(actual_path):
         return redirect(actual_path, 302)
 
     return send_from_directory(settings.file_server.serve_path, actual_path)
+
 
 if __name__ == '__main__':
     app.run()

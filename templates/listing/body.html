@@ -3,6 +3,11 @@
 {% else %}
 <h3 class="ui header shift-left">Index of {{ relative_path }}</h3>
 {% endif %}
+{% if header %}
+<div class="ui header external-header">
+    {% filter indent(width=4) %}{{ header|safe }}{% endfilter %}
+</div>
+{% endif %}
 <table class="file-listing">
     <thead>
         <tr>
@@ -36,4 +41,9 @@
         {% endfor %}
     </tbody>
 </table>
+{% if footer %}
+<div class="ui header external-header">
+    {% filter indent(width=4) %}{{ footer|safe }}{% endfilter %}
+</div>
+{% endif %}
 <script src="{{ settings.file_server.base_path }}/_/assets/table.js"></script>

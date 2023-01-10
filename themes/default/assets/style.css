@@ -138,6 +138,13 @@ div.ui.container h3.ui.header.shift-left {
     text-align: left;
 }
 
+div.ui.container div.ui.header.external-header {
+    color: white;
+    font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
+    font-weight: normal;
+    text-align: center;
+}
+
 div.ui.container div.ui.horizontal.section.divider {
     color: white;
     font-weight: 700;
