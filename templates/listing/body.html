@@ -60,8 +60,7 @@
 {% endif %}
 <script src="{{ settings.file_server.base_path }}/_/assets/table.js"></script>
 {% if enable_thumbnails %}
-{% if (file['mimetype'].split('/')[0] == 'video' and settings.file_server.enable_video_thumbnail) or
-      (file['mimetype'].split('/')[0] == 'image' and settings.file_server.enable_image_thumbnail) %}
+{% if settings.file_server.enable_video_thumbnail or settings.file_server.enable_image_thumbnail %}
 <script src="{{ settings.file_server.base_path }}/_/assets/thumbnail.js"></script>
 {% endif %}
 {% endif %}
