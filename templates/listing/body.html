@@ -32,10 +32,14 @@
                 <i class="info circle icon"></i>
             </td-->
             <td>
+                {% if enable_thumbnails %}
                 {% if file['mimetype'].split('/')[0] == 'video' and settings.file_server.enable_video_thumbnail %}
                 <img loading="lazy" class="file-listing thumbnail" src="{{ settings.file_server.base_path }}/_/video_thumbnail?path={{ file['path'] }}&scale=true" width="16" height="16" />
                 {% elif file['mimetype'].split('/')[0] == 'image' and settings.file_server.enable_image_thumbnail %}
                 <img loading="lazy" class="file-listing thumbnail" src="{{ settings.file_server.base_path }}/_/image_thumbnail?path={{ file['path'] }}&scale=true" width="16" height="16" />
+                {% else %}
+                <span class="fiv-sqo fiv-icon-{{ file['icon'] }}"></span>
+                {% endif %}
                 {% else %}
                 <span class="fiv-sqo fiv-icon-{{ file['icon'] }}"></span>
                 {% endif %}
@@ -55,4 +59,9 @@
 </div>
 {% endif %}
 <script src="{{ settings.file_server.base_path }}/_/assets/table.js"></script>
+{% if enable_thumbnails %}
+{% if (file['mimetype'].split('/')[0] == 'video' and settings.file_server.enable_video_thumbnail) or
+      (file['mimetype'].split('/')[0] == 'image' and settings.file_server.enable_image_thumbnail) %}
 <script src="{{ settings.file_server.base_path }}/_/assets/thumbnail.js"></script>
+{% endif %}
+{% endif %}

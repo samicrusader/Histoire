@@ -192,7 +192,7 @@ def page_thumbnail():
     if not actual_path:
         abort(500)
     elif actual_path != '/' and not actual_path.endswith('/'):
-        return redirect(os.path.join(settings.file_server.server_url, f'_/image_render?path={actual_path}/'), 302)
+        return redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'), 302)
     x, full_path, actual_path = verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isfile(full_path) or \
             os.path.isfile(os.path.join(full_path, 'index.htm')) or \
@@ -206,11 +206,13 @@ def page_thumbnail():
         i = fh.read()
         fh.close()
     else:
-        url = os.path.join(settings.file_server.server_url + f'/{actual_path.strip("/")}/')
+        # wxhtmltoimage chokes on objects that fail to load
+        url = os.path.join(settings.file_server.server_url + f'/{actual_path.strip("/")}/')+'?thumbs=false'
         try:
             i = imgkit.from_url(url, False, options={
                 'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
-                'enable-local-file-access': '', 'height': 550, 'log-level': 'error', 'width': 980, 'quiet': ''
+                'enable-local-file-access': '', 'height': 550, 'log-level': 'error', 'width': 980, 'quiet': '',
+                'load-media-error-handling': 'ignore', 'load-error-handling': 'ignore'
             })
         except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
             i = err.args[1]
@@ -343,7 +345,8 @@ def serve_dir(actual_path):
                            files=dir_walk(actual_path, full_path), page='listing',
                            breadcrumb=(generate_breadcrumb(actual_path)
                                        if settings.file_server.use_interactive_breadcrumb else ''), header=header_html,
-                           footer=footer_html)
+                           footer=footer_html,
+                           enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'))
 
 
 @app.route('/<path:actual_path>')
