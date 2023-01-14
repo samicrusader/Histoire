@@ -30,7 +30,13 @@
                 <i class="info circle icon"></i>
             </td-->
             <td>
+                {% if file['mimetype'].split('/')[0] == 'video' and settings.file_server.enable_video_thumbnail %}
+                <img src="{{ settings.file_server.base_path }}/_/video_thumbnail?path={{ file['path'] }}&scale=true" width="16" height="16" />
+                {% elif file['mimetype'].split('/')[0] == 'image' and settings.file_server.enable_image_thumbnail %}
+                <img src="{{ settings.file_server.base_path }}/_/image_thumbnail?path={{ file['path'] }}&scale=true" width="16" height="16" />
+                {% else %}
                 <span class="fiv-sqo fiv-icon-{{ file['icon'] }}"></span>
+                {% endif %}
             </td>
             <td class="filename" data-sort="{{ file['is_file'] }}_{{ file['name'] }}">
                 <a class="overflow" href="{{ file['path'] }}">{{ file['name'] }}</a>

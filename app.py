@@ -29,17 +29,19 @@ import mimetypes
 import pathlib
 import urllib.parse
 from datetime import datetime
-from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response
+from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response, send_file
 from typing import Union
 
 if settings.file_server.enable_image_thumbnail or settings.file_server.enable_video_thumbnail:
     from io import BytesIO
-    from PIL import Image
+    from PIL import Image, ImageOps
 if settings.file_server.enable_header_files:
     import markdown
     import markupsafe
 if settings.file_server.enable_page_thumbnail:
     import imgkit
+if settings.file_server.enable_video_remux:
+    import av
 if settings.file_server.enable_video_thumbnail:
     import cv2
     import random
@@ -115,27 +117,31 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
             file['size'] = '%s %s' % (s, i)
         if _file.is_file():
             file['extension'] = pathlib.Path(os.path.join(full_path, _file.name)).suffix.lstrip('.')
+            mimetype = mimetypes.guess_type(os.path.join(full_path, _file.name))
+            if not mimetype[0]:
+                file['icon'] = 'bin'
+                file['mimetype'] = 'application/octet-stream'
+            else:
+                file['mimetype'] = mimetype[0]
+
             if file['extension'].lower() in icon_db:
                 file['icon'] = file['extension'].lower()
             else:
-                mimetype = mimetypes.guess_type(os.path.join(full_path, _file.name))
-                if not mimetype[0]:
-                    file['icon'] = 'bin'
-                else:
-                    match mimetype[0].split('/')[0]:
-                        case 'application': file['icon'] = 'bin'
-                        case 'text': file['icon'] = 'txt'
-                        case 'video': file['icon'] = 'mp4'
-                        case 'image': file['icon'] = 'png'
-                        case 'audio': file['icon'] = '3ga'
-                        case 'message': file['icon'] = 'txt'
-                        case 'font': file['icon'] = 'otf'
-                        case _: file['icon'] = 'bin'
+                match file['mimetype'].split('/')[0]:
+                    case 'application': file['icon'] = 'bin'
+                    case 'text': file['icon'] = 'txt'
+                    case 'video': file['icon'] = 'mp4'
+                    case 'image': file['icon'] = 'png'
+                    case 'audio': file['icon'] = '3ga'
+                    case 'message': file['icon'] = 'txt'
+                    case 'font': file['icon'] = 'otf'
+                    case _: file['icon'] = 'bin'
             files.append(file)
         else:
             file['extension'] = ''
             file['icon'] = 'folder'
             file['path'] += '/'
+            file['mimetype'] = 'text/directory'
             folders.append(file)
     return sorted(folders, key=lambda _i: _i['name'].lower()) + sorted(files, key=lambda _i: _i['name'].lower())
 
@@ -222,10 +228,7 @@ def video_thumbnail():
         os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
 
     actual_path = request.args.get('path', None)
-    try:
-        scale = bool(json.loads(request.args.get('scale', 'false').lower()))
-    except NameError:
-        abort(500)
+    scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
     if not actual_path:
         abort(500)
     x, full_path, actual_path = verify_path(actual_path)
@@ -235,32 +238,27 @@ def video_thumbnail():
 
     fn = os.path.join(settings.file_server.thumbimage_cache_dir,
                       base64.urlsafe_b64encode(actual_path.encode()).decode())
+    if scale:
+        fn += '_scale'
+
     if os.path.exists(fn):
-        i = open(fn, 'rb')
+        i = open(fn, 'rb').read()
     else:
         vid = cv2.VideoCapture(full_path)
-        vid.set(cv2.CAP_PROP_POS_FRAMES, (int(vid.get(cv2.CAP_PROP_FRAME_COUNT)) // random.choice(range(2, 10))) - 1)
+        vid.set(cv2.CAP_PROP_POS_FRAMES, (int(vid.get(cv2.CAP_PROP_FRAME_COUNT)) // 3) - 1)
         _, frame = vid.read()
-        _, img = cv2.imencode('.jpg', frame)
-        i = img.tobytes()
+        img = Image.frombytes('RGB', (frame.shape[1], frame.shape[0]), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        if scale:
+            img = ImageOps.fit(img, (32, 32), Image.ANTIALIAS)
+        else:
+            img.thumbnail((512, 512))
+        with BytesIO() as bio:
+            img.save(bio, format='JPEG')
+            bio.seek(0)
+            i = bio.read()
         fh = open(fn, 'wb')
         fh.write(i)
         fh.close()
-    if scale:
-        fn = os.path.join(settings.file_server.thumbimage_cache_dir,
-                          base64.urlsafe_b64encode(actual_path.encode()).decode()+'_scale')
-        if os.path.exists(fn):
-            i = open(fn, 'rb')
-        else:
-            with BytesIO() as bio:
-                img = Image.open(i)
-                img.thumbnail((128, 128))
-                img.save(bio, format='JPEG')
-                bio.seek(0)
-                i = bio.read()
-                fh = open(fn, 'wb')
-                fh.write(i)
-                fh.close()
     return make_response(i, 200, {'Content-Type': 'image/jpeg'})
 
 
@@ -272,6 +270,8 @@ def image_thumbnail():
         os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
 
     actual_path = request.args.get('path', None)
+    scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
+    print(scale)
     if not actual_path:
         abort(500)
     x, full_path, actual_path = verify_path(actual_path)
@@ -281,12 +281,18 @@ def image_thumbnail():
 
     fn = os.path.join(settings.file_server.thumbimage_cache_dir,
                       base64.urlsafe_b64encode(actual_path.encode()).decode())
+    if scale:
+        fn += '_scale'
+
     if os.path.exists(fn):
-        i = open(fn, 'rb')
+        i = open(fn, 'rb').read()
     else:
+        img = Image.open(full_path)
+        if scale:
+            img = ImageOps.fit(img, (32, 32), Image.ANTIALIAS)
+        else:
+            img.thumbnail((512, 512))
         with BytesIO() as bio:
-            img = Image.open(full_path)
-            img.thumbnail((128, 128))
             img.save(bio, format='JPEG')
             bio.seek(0)
             i = bio.read()
