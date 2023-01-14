@@ -246,7 +246,9 @@ def video_thumbnail():
     else:
         vid = cv2.VideoCapture(full_path)
         vid.set(cv2.CAP_PROP_POS_FRAMES, (int(vid.get(cv2.CAP_PROP_FRAME_COUNT)) // 3) - 1)
-        _, frame = vid.read()
+        ret, frame = vid.read()
+        if not ret:
+            abort(500)
         img = Image.frombytes('RGB', (frame.shape[1], frame.shape[0]), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         if scale:
             img = ImageOps.fit(img, (32, 32), Image.ANTIALIAS)
@@ -286,7 +288,7 @@ def image_thumbnail():
     if os.path.exists(fn):
         i = open(fn, 'rb').read()
     else:
-        img = Image.open(full_path)
+        img = Image.open(full_path).convert('RGB')
         if scale:
             img = ImageOps.fit(img, (32, 32), Image.ANTIALIAS)
         else:

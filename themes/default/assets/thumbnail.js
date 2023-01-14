@@ -1,4 +1,13 @@
 (function() {
+    document.onreadystatechange = function(e) {
+        if (document.readyState === 'interactive') {
+            $('img.file-listing.thumbnail').each(function () {
+                this.addEventListener('error', function (x) {
+                    x.currentTarget.outerHTML = '<span class="fiv-sqo fiv-icon-bin"></span>';
+                });
+            });
+        };
+    };
     $(document).ready(function () {
         $('.file-listing.thumbnail').each(function () {
             this.addEventListener("mouseover", function (x) {
