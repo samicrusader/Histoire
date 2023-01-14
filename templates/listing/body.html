@@ -19,11 +19,13 @@
         </tr>
     </thead>
     <tbody>
+        {% if relative_path != '/' %}
         <tr data-sort-method="none">
             <!--td class="info"></td-->
-            <td></td>
+            <td><i class="angle left icon"></i></td>
             <td><a href="../">Parent Directory</a></td>
         </tr>
+        {% endif %}
         {% for file in files %}
         <tr>
             <!--td data-sort-method="none" class="info">

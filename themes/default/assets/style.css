@@ -246,6 +246,10 @@ div.ui.file-listing.tooltip img {
     border-radius: 0px 25px 25px 25px;
 }
 
+div.ui.container table.file-listing tbody tr td i.icon {
+    margin: unset;
+}
+
 /* UI Container: Bulk Download Footer */
 div.ui.container div.dlbox {
     background-color: #3339;
