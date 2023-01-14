@@ -271,7 +271,6 @@ def image_thumbnail():
 
     actual_path = request.args.get('path', None)
     scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
-    print(scale)
     if not actual_path:
         abort(500)
     x, full_path, actual_path = verify_path(actual_path)

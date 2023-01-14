@@ -237,6 +237,15 @@ div.ui.container table.file-listing tbody tr td i.info {
     }
 }
 
+div.ui.file-listing.tooltip {
+    position: absolute;
+}
+
+div.ui.file-listing.tooltip img {
+    border: solid rgba(0, 0, 0, 0.5) 12px;
+    border-radius: 0px 25px 25px 25px;
+}
+
 /* UI Container: Bulk Download Footer */
 div.ui.container div.dlbox {
     background-color: #3339;
