@@ -81,7 +81,6 @@ div.ui.container div.ui.header.external-header {
     color: white;
     font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
     font-weight: normal;
-    text-align: center;
 }
 
 /* UI Container: Blockquote */
@@ -283,4 +282,9 @@ div.ui.basic.modal input {
     color: white;
     font-family: 'mononoki', 'Consolas', 'Menlo', 'SF Mono Regular', monospace;
     font-size: 14px;
+}
+
+/* Fix Fomantic-UI crap */
+div.ui.container .ui.header:not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) {
+    font-size: inherit;
 }

@@ -36,7 +36,7 @@ if settings.file_server.enable_image_thumbnail or settings.file_server.enable_vi
     from io import BytesIO
     from PIL import Image, ImageOps
 if settings.file_server.enable_header_files:
-    import markdown
+    import commonmark
     import markupsafe
 if settings.file_server.enable_page_thumbnail:
     import imgkit
@@ -331,7 +331,7 @@ def serve_dir(actual_path):
             if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
                 pass
             elif file.endswith('.md'):
-                data = markdown.markdown(data)
+                data = commonmark.commonmark(data)
             elif file.endswith('.txt') or file == '.header' or file == '.footer':
                 data = f'<p>{markupsafe.escape(data)}</p>'
             if file.find('header') > -1:
