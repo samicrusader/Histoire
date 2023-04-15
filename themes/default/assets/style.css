@@ -219,6 +219,12 @@ div.ui.container table.file-listing .date-modified, .file-size, i.info {
 }
 
 @media screen and (max-width: 960px) {
+    div.ui.container table.file-listing {
+        border-collapse:separate;
+        border-spacing:0 15px;
+        font-size: 18px;
+    }
+
     div.ui.container table.file-listing .date-modified {
         display: none;
     }
@@ -249,7 +255,7 @@ div.ui.file-listing.tooltip {
 
 div.ui.file-listing.tooltip img {
     border: solid rgba(0, 0, 0, 0.5) 12px;
-    border-radius: 0px 25px 25px 25px;
+    border-radius: 0 25px 25px 25px;
 }
 
 div.ui.container table.file-listing tbody tr td i.icon {
