@@ -11,6 +11,8 @@ file_server:
   #use_interactive_breadcrumb: true
   # enable_header_files lets you enable or disable reading files in each directory to give a header and footer (optional, defaults to true)
   #enable_header_files: true
+  # enable_header_scripts lets you enable or disable using header scripts for headers and footers (requires enable_header_files to be enabled) (this should be disabled if you are not using it)
+  enable_header_scripts: false
 
   # enable_page_thumbnail enables embed thumbnails for each folder index (optional, default is false, there is some setup required see README.md)
   #enable_page_thumbnail: false

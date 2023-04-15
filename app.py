@@ -38,6 +38,8 @@ if settings.file_server.enable_image_thumbnail or settings.file_server.enable_vi
 if settings.file_server.enable_header_files:
     import commonmark
     import markupsafe
+    if settings.file_server.enable_header_scripts:
+        from importlib.machinery import SourceFileLoader
 if settings.file_server.enable_page_thumbnail:
     import imgkit
 if settings.file_server.enable_video_remux:
@@ -322,8 +324,12 @@ def serve_dir(actual_path):
     header_html = None
     footer_html = None
     if settings.file_server.enable_header_files:
-        for file in ['.header', '.header.md', '.header.htm', '.header.html', '.header.txt', '_h5ai.header.html',
-                     '.footer', '.footer.md', '.footer.htm', '.footer.html', '.header.txt', '_h5ai.footer.html']:
+        search_paths = ['.header', '.header.md', '.header.htm', '.header.html', '.header.txt', '_h5ai.header.html',
+                        '.footer', '.footer.md', '.footer.htm', '.footer.html', '.header.txt', '_h5ai.footer.html']
+        if settings.file_server.enable_header_scripts:
+            search_paths.insert(6, '.header.py')
+            search_paths.insert(-1, '.footer.py')
+        for file in search_paths:
             if not os.path.isfile(os.path.join(full_path, file))\
                     or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
                 continue
@@ -336,6 +342,10 @@ def serve_dir(actual_path):
                 data = commonmark.commonmark(data).replace('<code>', '<code class="language-none">')
             elif file.endswith('.txt') or file == '.header' or file == '.footer':
                 data = f'<p>{markupsafe.escape(data)}</p>'
+            elif file.endswith('.py'):
+                if settings.file_server.enable_header_scripts:
+                    py_obj = SourceFileLoader('render', os.path.join(full_path, file)).load_module()
+                    data = py_obj.render()
             if file.find('header') > -1:
                 header_html = data.strip()
             elif file.find('footer') > -1:
