@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.min.css" integrity="sha512-EgIkdlA87NL5dPmI6HztTCpg7XKfZRFQHbpEdDF3hCT45HjjmIJOx8K73r+YZha0vKyOcMpzC7fZ4RajCX25tg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.css" integrity="sha512-rErSjI34XKsATVf+BW6GnuWVmj7imdMR7AIyb4ydHhiMFewUiJOeN9bYO35iCgdG+3Bxkl0GkAs0E8hrDYooLA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/unescaped-markup/prism-unescaped-markup.min.css" integrity="sha512-g33HCZ23fueSK96JEeoy9DelAlu7Ry5mtxqLk+zlEiPj7NIpFI6T9mybOvQxjBN50FALFDCviMXiLqWJcFwzaA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
     {% filter indent(width=4) %}{% include os.path.join(page, 'head.html') %}{% endfilter %} {# Internal template #}
     {% filter indent(width=4) %}{% include 'html_head.html' %}{% endfilter %} {# Theme template #}
 </head>
@@ -22,7 +23,6 @@
         {% include os.path.join(page, 'body.html') %} {# Internal template #}
         {% filter indent(width=8) %}{% include 'footer.html' %}{% endfilter %} {# Theme template #}
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js" integrity="sha512-9khQRAUBYEJDCDVP2yw3LRUQvjJ0Pjx0EShmaQjcHa6AXiOv6qHQu9lCAIR8O+/D8FtaCoJ2c0Tf9Xo7hYH01Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js" integrity="sha512-SkmBfuA2hqjzEVpmnMt/LINrjop3GKWqsuLSSB3e7iBmYK7JuWw4ldmmxwD9mdm2IRTTi0OxSAfEGvgEi0i2Kw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.js" integrity="sha512-gNqZmXmzLWyg/00PDvTnX4q533JiXbxFdTWJC5hfOyHORHXOC6PtDP5Mm2Vpa4faIMONoKQADwhhbst9Ok1/oQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
