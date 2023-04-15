@@ -90,6 +90,14 @@ div.ui.container div.ui.header.external-header {
     }
 }
 
+div.ui.container div.ui.header.external-header a {
+    text-decoration: revert;
+}
+
+div.ui.container div.ui.header.external-header a:visited {
+    color: deeppink;
+}
+
 div.ui.container div.ui.header.external-header pre[class*=language-] {
     background-color: #3339;
     border-radius: .25em;
