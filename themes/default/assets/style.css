@@ -83,6 +83,13 @@ div.ui.container div.ui.header.external-header {
     font-weight: normal;
 }
 
+div.ui.container div.ui.header.external-header pre[class*=language-] {
+    background-color: #3339;
+    border-radius: .25em;
+    min-width: 100%;
+    white-space: normal;
+}
+
 /* UI Container: Blockquote */
 div.ui.container blockquote {
     margin-left: .5em;

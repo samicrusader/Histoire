@@ -331,11 +331,13 @@ def serve_dir(actual_path):
             if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
                 pass
             elif file.endswith('.md'):
-                data = commonmark.commonmark(data)
+                # Code without a language needs to be marked as having no language, so it stylizes properly.
+                # CommonMark does this with the <pre> tag which PrismJS does not like.
+                data = commonmark.commonmark(data).replace('<code>', '<code class="language-none">')
             elif file.endswith('.txt') or file == '.header' or file == '.footer':
                 data = f'<p>{markupsafe.escape(data)}</p>'
             if file.find('header') > -1:
-                header_html = data
+                header_html = data.strip()
             elif file.find('footer') > -1:
                 footer_html = data
     return render_template('base.html',
