@@ -39,7 +39,7 @@ div.ui.container img, a {
     display: inline-block;
 }
 
-div.ui.container p {
+div.ui.container :not(div.ui.header.external-header) p {
     font-size: 16px;
 }
 
@@ -80,7 +80,14 @@ div.ui.container h3.ui.header.shift-left {
 div.ui.container div.ui.header.external-header {
     color: white;
     font-family: 'Koruri', 'Segoe UI', 'Helvetica', sans-serif;
+    font-size: 15px;
     font-weight: normal;
+}
+
+@media screen and (max-width: 960px) {
+    div.ui.container div.ui.header.external-header {
+        font-size: 18px;
+    }
 }
 
 div.ui.container div.ui.header.external-header pre[class*=language-] {
