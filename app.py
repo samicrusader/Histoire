@@ -364,7 +364,7 @@ def serve_dir(actual_path):
 @app.route('/<path:actual_path>')
 def serve_file(actual_path):
     x, full_path, actual_path = verify_path(actual_path)
-    if not x:
+    if not x or os.path.isfile('.header.py') or os.path.isfile('.footer.py'):
         abort(404)
     elif os.path.isdir(full_path):
         return redirect(actual_path, 302)
