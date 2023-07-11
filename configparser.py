@@ -1,6 +1,7 @@
 import os
 from typing import Optional
-from pydantic import BaseModel, BaseSettings, validator
+from pydantic import BaseModel, validator
+from pydantic_settings import BaseSettings
 
 app_path = os.path.realpath(os.path.dirname(__file__))
 
