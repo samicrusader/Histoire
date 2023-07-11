@@ -109,7 +109,10 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
         file['path'] = urllib.parse.quote(os.path.join('/', settings.file_server.base_path, relative_path.lstrip('/'),
                                                        _file.name))
         file['modified_at_raw'] = stat.st_mtime
-        file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
+        if os.name is not 'nt':
+            file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
+        else:
+            file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%m/%d/%Y %I:%M:%S %p')
         if int(stat.st_size) == 0:
             file['size'] = '0 B'
         else:
