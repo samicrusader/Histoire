@@ -24,6 +24,6 @@ file_server:
   #enable_video_thumbnail: false
   # server_url is the URL pointing to your web server excluding the base path (optional, default is "http://127.0.0.1:5000", you NEED to change this)
   #server_url: "http://127.0.0.1:5000"
-  # thumbimage_cache_dir and wkhtmltoimage_cache_dir are cache directories for the page thumbnailing (optional, both point to cache/ in the location of configparser.py)
+  # thumbimage_cache_dir and wkhtmltoimage_cache_dir are cache directories for the page thumbnailing (optional, both point to cache/ in the location of configparse.py)
   #thumbimage_cache_dir: "/tmp/histoire/thumbimage"
   #wkhtmltoimage_cache_dir: "/tmp/histoire/wkhtmltoimage"

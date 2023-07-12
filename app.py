@@ -2,7 +2,7 @@
 import logging
 import os
 import yaml
-from configparser import Settings
+from configparse import Settings
 
 config_file = os.environ.get('HISTOIRE_CONFIG', './config.yaml')
 config_file_message = 'Failed to open ' + config_file + '{message}'
@@ -29,7 +29,7 @@ import mimetypes
 import pathlib
 import urllib.parse
 from datetime import datetime
-from flask import Flask, abort, send_from_directory, render_template, redirect, request, make_response, send_file
+from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response, send_file
 from typing import Union
 
 if settings.file_server.enable_image_thumbnail or settings.file_server.enable_video_thumbnail:
@@ -42,11 +42,8 @@ if settings.file_server.enable_header_files:
         from importlib.machinery import SourceFileLoader
 if settings.file_server.enable_page_thumbnail:
     import imgkit
-if settings.file_server.enable_video_remux:
-    import av
 if settings.file_server.enable_video_thumbnail:
     import cv2
-    import random
 
 # Handle mimetypes
 icon_db = json.load(open(os.path.join(
@@ -62,10 +59,11 @@ mimetypes.add_type('video/webm', '.mkv')
 mimetypes.add_type('video/mp2t', '.ts')  # while this is mpeg2-ts it's also typescript, but who is indexing typescript
 mimetypes.add_type('video/mp2t', '.m2ts')
 
-# Flask
+
+# Quart
 class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
-    def __init__(self, wsgi_app, prefix=''):
-        self.app = wsgi_app
+    def __init__(self, asgi_app, prefix=''):
+        self.app = asgi_app
         self.prefix = prefix
 
     def __call__(self, environ, start_response):
@@ -78,20 +76,19 @@ class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
             return ['404 Not Found'.encode()]
 
 
-app = Flask(__name__, static_url_path='/_/assets', static_folder=os.path.join(settings.file_server.theme, 'assets'),
+app = Quart(__name__, static_url_path='/_/assets', static_folder=os.path.join(settings.file_server.theme, 'assets'),
             instance_relative_config=False)
-app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix=settings.file_server.base_path)
-app.jinja_loader = jinja2.ChoiceLoader([
-    app.jinja_loader,
-    jinja2.FileSystemLoader([
-        settings.file_server.theme,
-        os.path.join(os.path.dirname(os.path.realpath(__file__)), 'templates'),
-    ])
-])
+#app.asgi_app = PrefixMiddleware(app.asgi_app, prefix=settings.file_server.base_path)
+print(app.jinja_environment)
+app.jinja_options = {'loader': jinja2.FileSystemLoader([
+    settings.file_server.theme,
+    os.path.join(os.path.dirname(os.path.realpath(__file__)), 'templates')
+])}
+
 app.jinja_env.globals.update(settings=settings, os=os, version='1.0')
 
 
-def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
+async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
     folders = list()
     files = list()
     for _file in os.scandir(full_path):
@@ -150,7 +147,7 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
     return sorted(folders, key=lambda _i: _i['name'].lower()) + sorted(files, key=lambda _i: _i['name'].lower())
 
 
-def verify_path(path: str):
+async def verify_path(path: str):
     if path == '/':
         return True, settings.file_server.serve_path, '/'
     else:
@@ -164,7 +161,7 @@ def verify_path(path: str):
     return check, full_path, actual_path
 
 
-def generate_breadcrumb(path: str):
+async def generate_breadcrumb(path: str):
     html = '<ol class="breadcrumb">\n'
     html += '    <li>Index of</li>'
     if path != '/':
@@ -184,9 +181,9 @@ def generate_breadcrumb(path: str):
 
 
 @app.route('/_/page_thumbnail')
-def page_thumbnail():
+async def page_thumbnail():
     if not settings.file_server.enable_page_thumbnail:
-        abort(404)
+        await abort(404)
     if not os.path.exists(settings.file_server.thumbimage_cache_dir):
         os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
     elif not os.path.exists(settings.file_server.wkhtmltoimage_cache_dir):
@@ -194,14 +191,14 @@ def page_thumbnail():
 
     actual_path = request.args.get('path', None)
     if not actual_path:
-        abort(500)
+        await abort(500)
     elif actual_path != '/' and not actual_path.endswith('/'):
-        return redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'), 302)
+        return await redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'), 302)
     x, full_path, actual_path = verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isfile(full_path) or \
             os.path.isfile(os.path.join(full_path, 'index.htm')) or \
             os.path.isfile(os.path.join(full_path, 'index.html')):
-        abort(404)
+        await abort(404)
 
     fn = os.path.join(settings.file_server.thumbimage_cache_dir,
                       base64.urlsafe_b64encode(actual_path.encode()).decode())
@@ -223,24 +220,24 @@ def page_thumbnail():
         fh = open(fn, 'wb')
         fh.write(i)
         fh.close()
-    return make_response(i, 200, {'Content-Type': 'image/jpeg'})
+    return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
 
 
 @app.route('/_/video_thumbnail')
-def video_thumbnail():
+async def video_thumbnail():
     if not settings.file_server.enable_video_thumbnail:
-        abort(404)
+        await abort(404)
     if not os.path.exists(settings.file_server.thumbimage_cache_dir):
         os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
 
     actual_path = request.args.get('path', None)
     scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
     if not actual_path:
-        abort(500)
+        await abort(500)
     x, full_path, actual_path = verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isdir(full_path) or \
             not mimetypes.guess_type(full_path)[0].split('/')[0] == 'video':
-        abort(404)
+        await abort(404)
 
     fn = os.path.join(settings.file_server.thumbimage_cache_dir,
                       base64.urlsafe_b64encode(actual_path.encode()).decode())
@@ -254,7 +251,7 @@ def video_thumbnail():
         vid.set(cv2.CAP_PROP_POS_FRAMES, (int(vid.get(cv2.CAP_PROP_FRAME_COUNT)) // 3) - 1)
         ret, frame = vid.read()
         if not ret:
-            abort(500)
+            await abort(500)
         img = Image.frombytes('RGB', (frame.shape[1], frame.shape[0]), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         if scale:
             img = ImageOps.fit(img, (32, 32), Image.ANTIALIAS)
@@ -267,24 +264,24 @@ def video_thumbnail():
         fh = open(fn, 'wb')
         fh.write(i)
         fh.close()
-    return make_response(i, 200, {'Content-Type': 'image/jpeg'})
+    return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
 
 
 @app.route('/_/image_thumbnail')
-def image_thumbnail():
+async def image_thumbnail():
     if not settings.file_server.enable_image_thumbnail:
-        abort(404)
+        await abort(404)
     if not os.path.exists(settings.file_server.thumbimage_cache_dir):
         os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
 
     actual_path = request.args.get('path', None)
     scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
     if not actual_path:
-        abort(500)
+        await abort(500)
     x, full_path, actual_path = verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isdir(full_path) or \
             not mimetypes.guess_type(full_path)[0].split('/')[0] == 'image':
-        abort(404)
+        await abort(404)
 
     fn = os.path.join(settings.file_server.thumbimage_cache_dir,
                       base64.urlsafe_b64encode(actual_path.encode()).decode())
@@ -306,19 +303,19 @@ def image_thumbnail():
         fh = open(fn, 'wb')
         fh.write(i)
         fh.close()
-    return make_response(i, 200, {'Content-Type': 'image/jpeg'})
+    return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
 
 
 @app.route('/')
-def root_directory():
-    return serve_dir('/')
+async def root_directory():
+    return await serve_dir('/')
 
 
 @app.route('/<path:actual_path>/')
-def serve_dir(actual_path):
-    x, full_path, actual_path = verify_path(actual_path)
+async def serve_dir(actual_path):
+    x, full_path, actual_path = await verify_path(actual_path)
     if not x or not os.path.isdir(full_path):
-        abort(404)
+        await abort(404)
     if os.path.isfile(os.path.join(full_path, 'index.htm')):
         return send_from_directory(full_path, 'index.htm')
     elif os.path.isfile(os.path.join(full_path, 'index.html')):
@@ -352,11 +349,11 @@ def serve_dir(actual_path):
                 header_html = data.strip()
             elif file.find('footer') > -1:
                 footer_html = data
-    return render_template('base.html',
+    return await render_template('base.html',
                            relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
                            modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
                            .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
-                           files=dir_walk(actual_path, full_path), page='listing',
+                           files=await dir_walk(actual_path, full_path), page='listing',
                            breadcrumb=(generate_breadcrumb(actual_path)
                                        if settings.file_server.use_interactive_breadcrumb else ''), header=header_html,
                            footer=footer_html,
@@ -364,14 +361,14 @@ def serve_dir(actual_path):
 
 
 @app.route('/<path:actual_path>')
-def serve_file(actual_path):
+async def serve_file(actual_path):
     x, full_path, actual_path = verify_path(actual_path)
     if not x or os.path.isfile('.header.py') or os.path.isfile('.footer.py'):
-        abort(404)
+        await abort(404)
     elif os.path.isdir(full_path):
-        return redirect(actual_path, 302)
+        return await redirect(actual_path, 302)
 
-    return send_from_directory(settings.file_server.serve_path, actual_path)
+    return await send_from_directory(settings.file_server.serve_path, actual_path)
 
 
 if __name__ == '__main__':
