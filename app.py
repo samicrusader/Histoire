@@ -62,7 +62,6 @@ mimetypes.add_type('video/webm', '.mkv')
 mimetypes.add_type('video/mp2t', '.ts')  # while this is mpeg2-ts it's also typescript, but who is indexing typescript
 mimetypes.add_type('video/mp2t', '.m2ts')
 
-
 # Flask
 class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
     def __init__(self, wsgi_app, prefix=''):
@@ -109,12 +108,12 @@ def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
         file['path'] = urllib.parse.quote(os.path.join('/', settings.file_server.base_path, relative_path.lstrip('/'),
                                                        _file.name))
         file['modified_at_raw'] = stat.st_mtime
-        if os.name is not 'nt':
+        if os.name != 'nt':
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
         else:
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%m/%d/%Y %I:%M:%S %p')
         if int(stat.st_size) == 0:
-            file['size'] = '0 B'
+            file['size'] = '-'
         else:
             dec = int(math.floor(math.log(int(stat.st_size), 1024)))
             i = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')[dec]
