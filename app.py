@@ -84,8 +84,8 @@ app.jinja_options = {'loader': jinja2.FileSystemLoader([
     settings.file_server.theme,
     os.path.join(os.path.dirname(os.path.realpath(__file__)), 'templates')
 ])}
-
 app.jinja_env.globals.update(settings=settings, os=os, version='1.0')
+app.url_map.strict_slashes = False
 
 
 async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
@@ -314,6 +314,10 @@ async def root_directory():
 @app.route('/<path:actual_path>/')
 async def serve_dir(actual_path):
     x, full_path, actual_path = await verify_path(actual_path)
+    print('serve_dir')
+    print(x)
+    print(full_path)
+    print(actual_path)
     if not x or not os.path.isdir(full_path):
         await abort(404)
     if os.path.isfile(os.path.join(full_path, 'index.htm')):
@@ -362,11 +366,15 @@ async def serve_dir(actual_path):
 
 @app.route('/<path:actual_path>')
 async def serve_file(actual_path):
-    x, full_path, actual_path = verify_path(actual_path)
+    print('serve_file')
+    x, full_path, actual_path = await verify_path(actual_path)
+    print(x)
+    print(full_path)
+    print(actual_path)
     if not x or os.path.isfile('.header.py') or os.path.isfile('.footer.py'):
         await abort(404)
     elif os.path.isdir(full_path):
-        return await redirect(actual_path, 302)
+        return redirect(actual_path, 302)
 
     return await send_from_directory(settings.file_server.serve_path, actual_path)
 
