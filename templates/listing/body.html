@@ -54,9 +54,9 @@
         {% endfor %}
     </tbody>
 </table>
-{% if dlbox %}
+{% if settings.file_server.enable_dlbox %}
 <div class="dlbox">
-    <code>wget -m -np -c -R "index.html*" "{{dl_url host base path}}"</code>
+    <code>wget -m -np -c -R "index.html*" "{{ settings.file_server.server_url }}{{ relative_path }}"</code>
 </div>
 {% endif %}
 {% if footer %}

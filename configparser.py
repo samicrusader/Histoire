@@ -14,6 +14,7 @@ class FileServer(BaseModel):
     use_interactive_breadcrumb: Optional[bool] = True
     enable_header_files: Optional[bool] = True
     enable_header_scripts: Optional[bool] = False
+    enable_dlbox: Optional[bool] = False
     enable_page_thumbnail: Optional[bool] = False
     enable_image_thumbnail: Optional[bool] = False
     enable_video_remux: Optional[bool] = False

@@ -13,6 +13,8 @@ file_server:
   #enable_header_files: true
   # enable_header_scripts lets you enable or disable using header scripts for headers and footers (requires enable_header_files to be enabled) (this should be disabled if you are not using it)
   enable_header_scripts: false
+  # enable_dlbox lets you enable or disable a box below your file listing that lists commands for bulk-downloading (wget, aria2c, rclone, etc...)
+  #enable_dlbox: true
 
   # enable_page_thumbnail enables embed thumbnails for each folder index (optional, default is false, there is some setup required see README.md)
   #enable_page_thumbnail: false
