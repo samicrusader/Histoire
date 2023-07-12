@@ -157,7 +157,7 @@ async def verify_path(path: str):
     check = bool(full_path.startswith(base_path) or not os.path.exists(full_path))
     if not check:
         return False, None, None
-    actual_path = (path+'/' if os.path.isdir(full_path) else path)
+    actual_path = path
     return check, full_path, actual_path
 
 
@@ -308,18 +308,26 @@ async def image_thumbnail():
 
 @app.route('/')
 async def root_directory():
-    return await serve_dir('/')
+    _, full_path, actual_path = await verify_path('/')
+    return await serve_dir(full_path, actual_path)
 
 
-@app.route('/<path:actual_path>/')
-async def serve_dir(actual_path):
+@app.route('/<path:actual_path>')
+async def serve(actual_path):
     x, full_path, actual_path = await verify_path(actual_path)
-    print('serve_dir')
-    print(x)
-    print(full_path)
-    print(actual_path)
-    if not x or not os.path.isdir(full_path):
+    if not x or not os.path.isdir(full_path) and not os.path.isfile(full_path):
         await abort(404)
+    elif os.path.isfile(full_path):  # handle file
+        if os.path.isfile('.header.py') or os.path.isfile('.footer.py') or actual_path.endswith('/'):
+            await abort(404)
+        return await send_from_directory(settings.file_server.serve_path, actual_path)
+    elif os.path.isdir(full_path) and not actual_path.endswith('/'):  # handle directory-without-a-trailing-slash
+        return redirect(actual_path+'/', 302)
+    else:  # serve the directory listing
+        return await serve_dir(full_path, actual_path)
+
+
+async def serve_dir(full_path, actual_path):
     if os.path.isfile(os.path.join(full_path, 'index.htm')):
         return send_from_directory(full_path, 'index.htm')
     elif os.path.isfile(os.path.join(full_path, 'index.html')):
@@ -362,21 +370,6 @@ async def serve_dir(actual_path):
                                        if settings.file_server.use_interactive_breadcrumb else ''), header=header_html,
                            footer=footer_html,
                            enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'))
-
-
-@app.route('/<path:actual_path>')
-async def serve_file(actual_path):
-    print('serve_file')
-    x, full_path, actual_path = await verify_path(actual_path)
-    print(x)
-    print(full_path)
-    print(actual_path)
-    if not x or os.path.isfile('.header.py') or os.path.isfile('.footer.py'):
-        await abort(404)
-    elif os.path.isdir(full_path):
-        return redirect(actual_path, 302)
-
-    return await send_from_directory(settings.file_server.serve_path, actual_path)
 
 
 if __name__ == '__main__':
