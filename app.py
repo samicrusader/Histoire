@@ -16,7 +16,7 @@ if not os.path.exists(config_file):
     exit(1)
 settings = None
 try:
-    settings = Settings.parse_obj(yaml.safe_load(open(config_file)))
+    settings = Settings.model_validate(yaml.safe_load(open(config_file)))
 except yaml.YAMLError as e:
     logging.critical(config_file_message.format(message=': ' + str(e)), exc_info=True)
     exit(1)
@@ -29,7 +29,7 @@ import mimetypes
 import pathlib
 import urllib.parse
 from datetime import datetime
-from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response, send_file
+from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
 from typing import Union
 
 if settings.file_server.enable_image_thumbnail or settings.file_server.enable_video_thumbnail:
@@ -38,6 +38,7 @@ if settings.file_server.enable_image_thumbnail or settings.file_server.enable_vi
 if settings.file_server.enable_header_files:
     import commonmark
     import markupsafe
+
     if settings.file_server.enable_header_scripts:
         from importlib.machinery import SourceFileLoader
 if settings.file_server.enable_page_thumbnail:
@@ -78,7 +79,7 @@ class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
 
 app = Quart(__name__, static_url_path='/_/assets', static_folder=os.path.join(settings.file_server.theme, 'assets'),
             instance_relative_config=False)
-#app.asgi_app = PrefixMiddleware(app.asgi_app, prefix=settings.file_server.base_path)
+# app.asgi_app = PrefixMiddleware(app.asgi_app, prefix=settings.file_server.base_path)
 print(app.jinja_environment)
 app.jinja_options = {'loader': jinja2.FileSystemLoader([
     settings.file_server.theme,
@@ -129,14 +130,22 @@ async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
                 file['icon'] = file['extension'].lower()
             else:
                 match file['mimetype'].split('/')[0]:
-                    case 'application': file['icon'] = 'bin'
-                    case 'text': file['icon'] = 'txt'
-                    case 'video': file['icon'] = 'mp4'
-                    case 'image': file['icon'] = 'png'
-                    case 'audio': file['icon'] = '3ga'
-                    case 'message': file['icon'] = 'txt'
-                    case 'font': file['icon'] = 'otf'
-                    case _: file['icon'] = 'bin'
+                    case 'application':
+                        file['icon'] = 'bin'
+                    case 'text':
+                        file['icon'] = 'txt'
+                    case 'video':
+                        file['icon'] = 'mp4'
+                    case 'image':
+                        file['icon'] = 'png'
+                    case 'audio':
+                        file['icon'] = '3ga'
+                    case 'message':
+                        file['icon'] = 'txt'
+                    case 'font':
+                        file['icon'] = 'otf'
+                    case _:
+                        file['icon'] = 'bin'
             files.append(file)
         else:
             file['extension'] = ''
@@ -167,7 +176,7 @@ async def generate_breadcrumb(path: str):
     if path != '/':
         html += f'    <li><a href="{settings.file_server.base_path}/">/</a></li>\n'
         paths = list(filter(None, path.split('/')))
-        overall = settings.file_server.base_path+'/'
+        overall = settings.file_server.base_path + '/'
         for _path in paths:
             overall += f'{_path}/'
             if _path == paths[-1]:  # check for last path
@@ -193,7 +202,8 @@ async def page_thumbnail():
     if not actual_path:
         await abort(500)
     elif actual_path != '/' and not actual_path.endswith('/'):
-        return await redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'), 302)
+        return redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'),
+                              302)
     x, full_path, actual_path = verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isfile(full_path) or \
             os.path.isfile(os.path.join(full_path, 'index.htm')) or \
@@ -208,7 +218,7 @@ async def page_thumbnail():
         fh.close()
     else:
         # wxhtmltoimage chokes on objects that fail to load
-        url = os.path.join(settings.file_server.server_url + f'/{actual_path.strip("/")}/')+'?thumbs=false'
+        url = os.path.join(settings.file_server.server_url + f'/{actual_path.strip("/")}/') + '?thumbs=false'
         try:
             i = imgkit.from_url(url, False, options={
                 'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
@@ -322,7 +332,7 @@ async def serve(actual_path):
             await abort(404)
         return await send_from_directory(settings.file_server.serve_path, actual_path)
     elif os.path.isdir(full_path) and not actual_path.endswith('/'):  # handle directory-without-a-trailing-slash
-        return redirect(actual_path+'/', 302)
+        return redirect(actual_path + '/', 302)
     else:  # serve the directory listing
         return await serve_dir(full_path, actual_path)
 
@@ -341,7 +351,7 @@ async def serve_dir(full_path, actual_path):
             search_paths.insert(6, '.header.py')
             search_paths.insert(-1, '.footer.py')
         for file in search_paths:
-            if not os.path.isfile(os.path.join(full_path, file))\
+            if not os.path.isfile(os.path.join(full_path, file)) \
                     or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
                 continue
             data = open(os.path.join(full_path, file), 'r').read()
@@ -362,14 +372,15 @@ async def serve_dir(full_path, actual_path):
             elif file.find('footer') > -1:
                 footer_html = data
     return await render_template('base.html',
-                           relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
-                           modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
-                           .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
-                           files=await dir_walk(actual_path, full_path), page='listing',
-                           breadcrumb=(generate_breadcrumb(actual_path)
-                                       if settings.file_server.use_interactive_breadcrumb else ''), header=header_html,
-                           footer=footer_html,
-                           enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'))
+                                 relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
+                                 modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
+                                 .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
+                                 files=await dir_walk(actual_path, full_path), page='listing',
+                                 breadcrumb=(generate_breadcrumb(actual_path)
+                                             if settings.file_server.use_interactive_breadcrumb else ''),
+                                 header=header_html,
+                                 footer=footer_html,
+                                 enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'))
 
 
 if __name__ == '__main__':
