@@ -7,7 +7,6 @@ app_path = os.path.realpath(os.path.dirname(__file__))
 
 
 class FileServer(BaseModel):
-    serve_path: str
     base_path: Optional[str] = ""
     theme: Optional[str] = os.path.join(app_path, 'themes', 'default')
     show_dot_files: Optional[bool] = False
@@ -23,12 +22,6 @@ class FileServer(BaseModel):
     server_url: Optional[str] = 'http://127.0.0.1:5000'
     thumbimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'thumbimage')
     wkhtmltoimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'wkhtmltoimage')
-
-    @validator('serve_path')
-    def serve_path_exists(cls, path):
-        if not os.path.exists(path):
-            raise ValueError(f'Path {path} does not exist')
-        return path
 
     @validator('base_path')
     def base_path_validate(cls, path):
