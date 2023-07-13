@@ -25,6 +25,7 @@ except yaml.YAMLError as e:
 
 import aiofiles
 import aiopath
+import asyncio
 import base64
 import concurrent.futures
 import functools
@@ -34,6 +35,8 @@ import math
 import mimetypes
 import urllib.parse
 from datetime import datetime
+from hypercorn.config import Config
+from hypercorn.asyncio import serve as hyperserve
 from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
 from typing import Union
 
@@ -427,25 +430,36 @@ async def serve_dir(full_path, actual_path):
             elif file.endswith('.py'):
                 if settings.file_server.enable_header_scripts:
                     with concurrent.futures.ProcessPoolExecutor() as pool:
-                        data = await asyncio.get_running_loop()\
+                        data = await asyncio.get_running_loop() \
                             .run_in_executor(pool, functools.partial(_render_script, path=full_path, file=file))
             if file.find('header') > -1:
                 header_html = data.strip()
             elif file.find('footer') > -1:
                 footer_html = data
     files = await dir_walk(actual_path, full_path)
-    return await render_template('base.html',
-                                 relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
-                                 modified_time=datetime.fromtimestamp(
-                                     (await aiopath.AsyncPath(full_path).stat()).st_mtime
-                                 ).strftime('%Y-%m-%dT%H:%M:%S+00:00'), files=files,
-                                 page='listing',
-                                 breadcrumb=(await generate_breadcrumb(actual_path)
-                                             if settings.file_server.use_interactive_breadcrumb else ''),
-                                 header=header_html,
-                                 footer=footer_html,
-                                 enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'))
+    resp = await make_response(
+        await render_template(
+            'base.html',
+            relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
+            modified_time=datetime.utcfromtimestamp((await aiopath.AsyncPath(full_path).stat()).st_mtime)
+            .strftime('%Y-%m-%dT%H:%M:%S+00:00'), files=files, page='listing',
+            breadcrumb=(await generate_breadcrumb(actual_path)
+                        if settings.file_server.use_interactive_breadcrumb else ''),
+            header=header_html, footer=footer_html,
+            enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true')
+        )
+    )
+    # Wed, 05 Jul 2023 06:43:12 GMT for /public
+    resp.date = datetime.utcfromtimestamp((await aiopath.AsyncPath(full_path).stat()).st_mtime)
+    return resp
 
 
 if __name__ == '__main__':
-    app.run()
+    hypercorn_config = Config()
+    hypercorn_config.access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
+    hypercorn_config.accesslog = "-"
+    hypercorn_config.bind = ['127.0.0.1:5000']
+    hypercorn_config.errorlog = hypercorn_config.accesslog
+    hypercorn_config.include_date_header = False
+    print(hypercorn_config.include_date_header)
+    asyncio.run(hyperserve(app, hypercorn_config))
