@@ -262,13 +262,23 @@ def _get_video_thumb(path: str, tiny: bool = False):
 
 @app.route('/_/static/<path:actual_path>')
 async def serve_static(actual_path):
-    return await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath('static'), actual_path)
+    resp = await make_response(
+        await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath('static'), actual_path)
+    )
+    resp.headers['Cache-Control'] = 'max-age=604800, must-revalidate'  # static files can change between updates
+    return resp
 
 
 @app.route('/_/assets/<path:actual_path>')
 async def serve_assets(actual_path):
-    return await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath(settings.file_server.theme)
-                                     .joinpath('assets'), actual_path)
+    resp = await make_response(
+        await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath(settings.file_server.theme)
+                            .joinpath('assets'), actual_path)
+    )
+    resp.headers['Cache-Control'] = 'max-age=604800'  # assets don't really change much
+    if aiopath.AsyncPath(actual_path).suffix.lstrip('.') in ['css', 'js']:  # unless they're used for styling
+        resp.headers['Cache-Control'] += ', must-revalidate'  # in which case you want that being fresh if "stale"
+    return resp
 
 
 @app.route('/_/thumbnailer')
