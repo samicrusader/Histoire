@@ -16,6 +16,8 @@ file_server:
   # enable_dlbox lets you enable or disable a box below your file listing that lists commands for bulk-downloading (wget, aria2c, rclone, etc...)
   #enable_dlbox: true
 
+  # enable_thumbnailer enables the ability for Histoire to generate thumbnails globally for images, videos, and the page itself for embeds (optional, default is false)
+  #enable_thumbnailer: false
   # enable_page_thumbnail enables embed thumbnails for each folder index (optional, default is false, there is some setup required see README.md)
   #enable_page_thumbnail: false
   # enable_image_thumbnail enables image thumbnails (optional, default is false)

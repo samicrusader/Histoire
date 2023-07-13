@@ -20,10 +20,10 @@ This should all be done within a container using either Docker or LXC with read-
 
 * Install `opencv2 wkhtmltopdf` from your system's repositories
   * Debian/Ubuntu users should replace `opencv2` with `libopencv-dev`
-* Install `pydantic pydantic_settings aiofile aiopath av quart imgkit jinja2 markdown markupsafe opencv-python pillow yaml` to your Python installation
+* Install `pydantic pydantic_settings aiofile aiopath opencv-python av quart imgkit jinja2 markdown markupsafe opencv-python pillow yaml` to your Python installation
   * **FIXME: package names for Quart are likely wrong**
-  * Arch Linux users should install `python-pydantic python-quart python-jinja2 python-markdown python-pillow python-av python-yaml`
-  * Debian/Ubuntu users should install `python3-pydantic python3-quart python3-jinja2 python3-commonmark python3-markupsafe python3-av python3-yaml python3-pil`
+  * Arch Linux users should install `python-pydantic python-opencv python-quart python-jinja2 python-markdown python-pillow python-av python-yaml`
+  * Debian/Ubuntu users should install `python3-pydantic python3-quart python3-opencv python3-jinja2 python3-commonmark python3-markupsafe python3-av python3-yaml python3-pil`
   * `pydantic_settings aiofile aiopath imgkit` still needs to be installed from PyPI using `pip`
 * Copy [`config.example.yaml`](config.example.yaml) to `config.yaml` in the same directory as [`app.py`](app.py) and edit to your liking
 * **FIXME: uWSGI doesn't work for this anymore**

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Config
-import concurrent.futures.process
+import asyncio
 import logging
 import os
 import yaml
@@ -26,6 +26,8 @@ except yaml.YAMLError as e:
 import aiofiles
 import aiopath
 import base64
+import concurrent.futures
+import functools
 import jinja2
 import json
 import math
@@ -187,7 +189,7 @@ async def verify_path(path: str):
 async def generate_breadcrumb(path: str):
     html = '<ol class="breadcrumb">\n'
     html += '    <li>Index of</li>'
-    base_path = ("/" if settings.file_server.base_path == "/" else settings.file_server.base_path+'/')
+    base_path = ("/" if settings.file_server.base_path == "/" else settings.file_server.base_path + '/')
     if path != '/':
         html += f'    <li><a href="{base_path}">{base_path}</a></li>\n'
         paths = list(filter(None, path.split('/')))
@@ -204,6 +206,81 @@ async def generate_breadcrumb(path: str):
     return html
 
 
+def _thumb_image(img: Image, tiny: bool = False):
+    if tiny:
+        img = ImageOps.fit(img, (32, 32), Image.LANCZOS)
+    else:
+        img.thumbnail((512, 512))
+    with BytesIO() as bio:
+        img.save(bio, format='JPEG')
+        bio.seek(0)
+        i = bio.read()
+    return i
+
+
+def _get_image_thumb(path: str, tiny: bool = False):
+    img = Image.open(path).convert('RGB')
+    return _thumb_image(img, tiny)
+
+
+def _get_video_thumb(path: str, tiny: bool = False):
+    vid = cv2.VideoCapture(path)
+    vid.set(cv2.CAP_PROP_POS_FRAMES, (int(vid.get(cv2.CAP_PROP_FRAME_COUNT)) // 3) - 1)
+    ret, frame = vid.read()
+    if not ret:
+        raise RuntimeError('failed to read video frame')
+    img = Image.frombytes('RGB', (frame.shape[1], frame.shape[0]), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    return _thumb_image(img, tiny)
+
+
+@app.route('/_/thumbnailer')
+async def thumbnailer():
+    loop = asyncio.get_running_loop()
+    # FIXME: page_thumbnail needs to somehow be shoehorned in here
+    if not settings.file_server.enable_thumbnailer:
+        await abort(404)
+    thumbimage_cache_dir = aiopath.AsyncPath(settings.file_server.thumbimage_cache_dir)
+    await thumbimage_cache_dir.mkdir(parents=True, exist_ok=True)
+
+    scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
+    actual_path = request.args.get('path', None)
+    if not actual_path:
+        await abort(500)
+    x, full_path, actual_path = await verify_path(actual_path)
+    if not x or not await full_path.exists() or await full_path.is_dir():
+        await abort(404)
+    file_type = mimetypes.guess_type(str(full_path))[0].split('/')[0]
+    if file_type not in ['image', 'video']:
+        await abort(404)
+
+    fn = base64.urlsafe_b64encode(actual_path.encode()).decode().lstrip('==')
+    if scale:
+        fn += '_scale'
+    fn = thumbimage_cache_dir.joinpath(fn)
+
+    if await fn.exists():
+        fh = await aiofiles.open(fn, 'rb')
+        i = await fh.read()
+        await fh.close()
+    else:
+        with concurrent.futures.ProcessPoolExecutor() as pool:
+            if file_type == 'image':
+                if not settings.file_server.enable_image_thumbnail:
+                    await abort(404)
+                func = _get_image_thumb
+            elif file_type == 'video':
+                if not settings.file_server.enable_video_thumbnail:
+                    await abort(404)
+                func = _get_video_thumb
+            else:
+                await abort(500)
+            i = await loop.run_in_executor(pool, functools.partial(func, path=str(full_path), tiny=scale))
+        fh = await aiofiles.open(fn, 'wb')
+        await fh.write(i)
+        await fh.close()
+    return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
+
+
 @app.route('/_/page_thumbnail')
 async def page_thumbnail():
     if not settings.file_server.enable_page_thumbnail:
@@ -217,8 +294,7 @@ async def page_thumbnail():
     if not actual_path:
         await abort(500)
     elif actual_path != '/' and not actual_path.endswith('/'):
-        return redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'),
-                              302)
+        return redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'), 302)
     x, full_path, actual_path = await verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isfile(full_path) or \
             os.path.isfile(os.path.join(full_path, 'index.htm')) or \
@@ -248,89 +324,6 @@ async def page_thumbnail():
     return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
 
 
-@app.route('/_/video_thumbnail')
-async def video_thumbnail():
-    if not settings.file_server.enable_video_thumbnail:
-        await abort(404)
-    if not os.path.exists(settings.file_server.thumbimage_cache_dir):
-        os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
-
-    actual_path = request.args.get('path', None)
-    scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
-    if not actual_path:
-        await abort(500)
-    x, full_path, actual_path = await verify_path(actual_path)
-    if not x or not os.path.exists(full_path) or os.path.isdir(full_path) or \
-            not mimetypes.guess_type(full_path)[0].split('/')[0] == 'video':
-        await abort(404)
-
-    fn = os.path.join(settings.file_server.thumbimage_cache_dir,
-                      base64.urlsafe_b64encode(actual_path.encode()).decode())
-    if scale:
-        fn += '_scale'
-
-    if os.path.exists(fn):
-        i = open(fn, 'rb').read()
-    else:
-        vid = cv2.VideoCapture(full_path)
-        vid.set(cv2.CAP_PROP_POS_FRAMES, (int(vid.get(cv2.CAP_PROP_FRAME_COUNT)) // 3) - 1)
-        ret, frame = vid.read()
-        if not ret:
-            await abort(500)
-        img = Image.frombytes('RGB', (frame.shape[1], frame.shape[0]), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        if scale:
-            img = ImageOps.fit(img, (32, 32), Image.LANCZOS)
-        else:
-            img.thumbnail((512, 512))
-        with BytesIO() as bio:
-            img.save(bio, format='JPEG')
-            bio.seek(0)
-            i = bio.read()
-        fh = open(fn, 'wb')
-        fh.write(i)
-        fh.close()
-    return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
-
-
-@app.route('/_/image_thumbnail')
-async def image_thumbnail():
-    if not settings.file_server.enable_image_thumbnail:
-        await abort(404)
-    if not os.path.exists(settings.file_server.thumbimage_cache_dir):
-        os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
-
-    actual_path = request.args.get('path', None)
-    scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
-    if not actual_path:
-        await abort(500)
-    x, full_path, actual_path = await verify_path(actual_path)
-    if not x or not os.path.exists(full_path) or os.path.isdir(full_path) or \
-            not mimetypes.guess_type(full_path)[0].split('/')[0] == 'image':
-        await abort(404)
-
-    fn = os.path.join(settings.file_server.thumbimage_cache_dir,
-                      base64.urlsafe_b64encode(actual_path.encode()).decode())
-    if scale:
-        fn += '_scale'
-
-    if os.path.exists(fn):
-        i = open(fn, 'rb').read()
-    else:
-        img = Image.open(full_path).convert('RGB')
-        if scale:
-            img = ImageOps.fit(img, (32, 32), Image.LANCZOS)
-        else:
-            img.thumbnail((512, 512))
-        with BytesIO() as bio:
-            img.save(bio, format='JPEG')
-            bio.seek(0)
-            i = bio.read()
-        fh = open(fn, 'wb')
-        fh.write(i)
-        fh.close()
-    return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
-
-
 @app.route('/')
 async def root_directory():
     _, full_path, actual_path = await verify_path('/')
@@ -347,7 +340,7 @@ async def serve(actual_path):
             await abort(404)
         return await send_from_directory(settings.file_server.serve_path, actual_path)
     elif os.path.isdir(full_path) and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
-        return redirect('/'+actual_path + '/', 302)
+        return redirect('/' + actual_path + '/', 302)
     else:  # serve the directory listing
         return await serve_dir(full_path, actual_path)
 
