@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, Dict
 from pydantic import BaseModel, validator
 from pydantic_settings import BaseSettings
 
@@ -54,5 +54,27 @@ class FileServer(BaseModel):
         return url
 
 
+class ServedPaths(BaseModel):
+    pass
+
+
+class Mountpoint(BaseModel):
+    path: str
+    type: Optional[str] = 'listing'
+
+    @validator('path')
+    def serve_path_exists(cls, path):
+        if not os.path.exists(path):
+            raise ValueError(f'Path {path} does not exist')
+        return path
+
+    @validator('type')
+    def validate_type(cls, type):
+        if type not in ['listing', 'static']:
+            raise ValueError(f'Invalid mount type `{type}`. Use either `listing` or `static`.')
+        return type
+
+
 class Settings(BaseSettings):
     file_server: FileServer
+    serve_paths: Dict[str, Mountpoint]

@@ -102,7 +102,7 @@ app.jinja_env.globals.update(settings=settings, os=os, version='1.0')
 app.url_map.strict_slashes = False
 
 
-async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike, aiopath.AsyncPath]):
+async def dir_walk(mount: str, actual_path: str, full_path: Union[str, os.PathLike, aiopath.AsyncPath]):
     folders = list()
     files = list()
     async for _file in aiopath.scandir.scandir_async(full_path):
@@ -117,7 +117,7 @@ async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike, aiopat
         file['name'] = _file.name
         file['is_file'] = await _file.is_file()
         file['path'] = urllib.parse.quote(str(await aiopath.AsyncPath('/').joinpath(settings.file_server.base_path)
-                                          .joinpath(relative_path.lstrip('/')).joinpath(_file.name).resolve()))
+                                              .joinpath(str(actual_path).lstrip('/')).joinpath(_file.name).resolve()))
         file['modified_at_raw'] = stat.st_mtime
         if os.name != 'nt':
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
@@ -171,29 +171,50 @@ async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike, aiopat
 
 
 async def verify_path(path: str):
+    # _ is root mount
     if path == '/':
-        return True, aiopath.AsyncPath(settings.file_server.serve_path), '/'
-    else:
-        path = path.lstrip('/')
+        if '_' not in settings.serve_paths.keys():  # If the root mount doesn't exist, and we're hitting the root dir,
+            return False, None, None, None  # indicate a failed pull (404's in `serve`),
+        return True, '_', aiopath.AsyncPath(settings.serve_paths['_'].path), '/'  # otherwise return the root mount
     # If anyone knows a better way to do the following: mailto:hi@samicrusader.me
     # aiopath.AsyncPath is basically the same as pathlib.Path
+    path = path.lstrip('/')
     path = path.replace('/..', '')  # This is THE hack, but it should serve to boot anyone even trying to fuck around.
-    base_path = await aiopath.AsyncPath(settings.file_server.serve_path).resolve()
-    full_path = await aiopath.AsyncPath(base_path).joinpath(path.lstrip('/')).resolve()
+    path = aiopath.AsyncPath(path)
+    if path.parts[0] == settings.file_server.base_path.strip('/'): # If the first bit of the URL matches the base path,
+        mount = path.parts[1]  # make the mount name and parts seem like the base path was never there!
+        parts = path.parts[1:]
+    else: # Otherwise,
+        mount = path.parts[0]  # just leave the regular name and URL parts.
+        parts = path.parts
+    if mount not in settings.serve_paths.keys():
+        if '_' in settings.serve_paths.keys():  # use root mount as root mount point
+            mount = '_'
+            mount_serve_path = aiopath.AsyncPath(settings.serve_paths['_'].path)
+            mount_file_path = path
+        else:
+            return False, None, None, None
+    else:
+        mount_serve_path = aiopath.AsyncPath(settings.serve_paths[parts[0]].path)
+        mount_file_path = str(aiopath.AsyncPath(*parts[1:]))
+        if mount_file_path == '.':
+            mount_file_path = ''
+    base_path = await aiopath.AsyncPath(mount_serve_path).resolve()  # base serve path
+    full_path = await aiopath.AsyncPath(base_path).joinpath(str(mount_file_path).lstrip('/')).resolve()  # file path
     check = bool(str(full_path).startswith(str(base_path)) or not await full_path.exists())
-    if not check:
-        return check, None, None
+    if not check:  # check is if the file path starts with the base path and if the file actually exists
+        return check, None, None, None
     actual_path = path
-    return check, full_path, actual_path
+    return check, mount, full_path, actual_path  # this is basically to manage directories and prevent traversal via 404
 
 
-async def generate_breadcrumb(path: str):
+async def generate_breadcrumb(path: aiopath.AsyncPath):
     html = '<ol class="breadcrumb">\n'
     html += '    <li>Index of</li>'
     base_path = ("/" if settings.file_server.base_path == "/" else settings.file_server.base_path + '/')
     if path != '/':
         html += f'    <li><a href="{base_path}">{base_path}</a></li>\n'
-        paths = list(filter(None, path.split('/')))
+        paths = list(filter(None, path.parts))
         overall = base_path
         for _path in paths:
             overall += f'{_path}/'
@@ -253,14 +274,14 @@ async def thumbnailer():
     actual_path = request.args.get('path', None)
     if not actual_path:
         await abort(500)
-    x, full_path, actual_path = await verify_path(actual_path)
+    x, mount, full_path, actual_path = await verify_path(actual_path)
     if not x or not await full_path.exists() or await full_path.is_dir():
         await abort(404)
     file_type = mimetypes.guess_type(str(full_path))[0].split('/')[0]
     if file_type not in ['image', 'video']:
         await abort(404)
 
-    fn = base64.urlsafe_b64encode(actual_path.encode()).decode().lstrip('==')
+    fn = base64.urlsafe_b64encode(str(actual_path).encode()).decode().lstrip('==')
     if scale:
         fn += '_scale'
     fn = thumbimage_cache_dir.joinpath(fn)
@@ -337,30 +358,30 @@ async def page_thumbnail():
 
 @app.route('/')
 async def root_directory():
-    _, full_path, actual_path = await verify_path('/')
-    return await serve_dir(full_path, actual_path)
+    _, mount, full_path, actual_path = await verify_path('/')
+    return await serve_dir(mount, full_path, actual_path)
 
 
 @app.route('/<path:actual_path>')
 async def serve(actual_path):
-    x, full_path, actual_path = await verify_path(actual_path)
+    x, mount, full_path, actual_path = await verify_path(actual_path)
     if not x or not await full_path.exists():
         await abort(404)
     elif await full_path.is_file():  # handle file
         if full_path.name == '.header.py' or full_path.name == '.footer.py' or request.path.endswith('/'):
             await abort(404)
-        return await send_from_directory(settings.file_server.serve_path, actual_path)
+        return await send_from_directory(full_path.parent, actual_path.name)
     elif await full_path.is_dir() and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
-        return redirect('/' + actual_path + '/', 302)
+        return redirect('/' + str(actual_path) + '/', 302)
     else:  # serve the directory listing
-        return await serve_dir(full_path, actual_path)
+        return await serve_dir(mount, full_path, actual_path)
 
 
-async def serve_dir(full_path, actual_path):
+async def serve_dir(mount, full_path, actual_path):
     if await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file():
-        return send_from_directory(full_path, 'index.htm')
+        return await send_from_directory(full_path, 'index.htm')
     elif await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
-        return send_from_directory(full_path, 'index.html')
+        return await send_from_directory(full_path, 'index.html')
     header_html = None
     footer_html = None
     if settings.file_server.enable_header_files:
@@ -392,7 +413,7 @@ async def serve_dir(full_path, actual_path):
                 header_html = data.strip()
             elif file.find('footer') > -1:
                 footer_html = data
-    files = await dir_walk(actual_path, full_path)
+    files = await dir_walk(mount, actual_path, full_path)
     return await render_template('base.html',
                                  relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
                                  modified_time=datetime.fromtimestamp(

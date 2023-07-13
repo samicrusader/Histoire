@@ -1,6 +1,4 @@
 file_server:
-  # serve_path is where the data to be served is located (required)
-  serve_path: "/srv/http"
   # base_path is the base path of the web directory ("/histoire" = "http://example.com/histoire/example/path") (optional, defaults to "/")
   #base_path: "/"
   # theme points to a folder with theme files, see README.md for information (optional, defaults to "default")
@@ -11,8 +9,8 @@ file_server:
   #use_interactive_breadcrumb: true
   # enable_header_files lets you enable or disable reading files in each directory to give a header and footer (optional, defaults to true)
   #enable_header_files: true
-  # enable_header_scripts lets you enable or disable using header scripts for headers and footers (requires enable_header_files to be enabled) (this should be disabled if you are not using it)
-  enable_header_scripts: false
+  # enable_header_scripts lets you enable or disable using header scripts for headers and footers (requires enable_header_files to be enabled) (this should be disabled if you are not using it and/or running a file upload script that Histoire serves from)
+  #enable_header_scripts: false
   # enable_dlbox lets you enable or disable a box below your file listing that lists commands for bulk-downloading (wget, aria2c, rclone, etc...)
   #enable_dlbox: true
 
@@ -29,3 +27,14 @@ file_server:
   # thumbimage_cache_dir and wkhtmltoimage_cache_dir are cache directories for the page thumbnailing (optional, both point to cache/ in the location of configparse.py)
   #thumbimage_cache_dir: "/tmp/histoire/thumbimage"
   #wkhtmltoimage_cache_dir: "/tmp/histoire/wkhtmltoimage"
+
+serve_paths:
+  # This section allows for specific mounts to be used for different paths.
+  # _ is used for the root mount. This will be `/`. If you used "public", your path would be `/public`. This works with the file_server.base_path variable.
+  # You cannot nest or use multiple directories in each mount.
+  "_":
+    path: "/srv/http"
+    type: "static"
+  "public":
+    path: "/mnt/files/opendir"
+    type: "listing"
