@@ -1,4 +1,6 @@
+#!/usr/bin/env python3
 # Config
+import concurrent.futures.process
 import logging
 import os
 import yaml
@@ -21,12 +23,13 @@ except yaml.YAMLError as e:
     logging.critical(config_file_message.format(message=': ' + str(e)), exc_info=True)
     exit(1)
 
+import aiofiles
+import aiopath
 import base64
 import jinja2
 import json
 import math
 import mimetypes
-import pathlib
 import urllib.parse
 from datetime import datetime
 from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
@@ -92,17 +95,17 @@ app.url_map.strict_slashes = False
 async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
     folders = list()
     files = list()
-    for _file in os.scandir(full_path):
+    async for _file in aiopath.scandir.scandir_async(full_path):
         if not settings.file_server.show_dot_files:
             if _file.name.startswith('.') or _file.name.startswith('_h5ai'):
                 continue
         try:
-            stat = _file.stat()  # Query the file stats before doing any parsing as broken symlinks will kill it.
+            stat = await _file.stat()  # Query the file stats before doing any parsing as broken symlinks will kill it.
         except FileNotFoundError:
             continue
         file = dict()
         file['name'] = _file.name
-        file['is_file'] = _file.is_file()
+        file['is_file'] = await _file.is_file()
         file['path'] = urllib.parse.quote(os.path.join('/', settings.file_server.base_path, relative_path.lstrip('/'),
                                                        _file.name))
         file['modified_at_raw'] = stat.st_mtime
@@ -117,8 +120,8 @@ async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
             i = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')[dec]
             s = round(int(stat.st_size) / math.pow(1024, dec), 2)
             file['size'] = '%s %s' % (s, i)
-        if _file.is_file():
-            file['extension'] = pathlib.Path(os.path.join(full_path, _file.name)).suffix.lstrip('.')
+        if file['is_file']:
+            file['extension'] = aiopath.AsyncPath(os.path.join(full_path, _file.name)).suffix.lstrip('.')
             mimetype = mimetypes.guess_type(os.path.join(full_path, _file.name))
             if not mimetype[0]:
                 file['icon'] = 'bin'
@@ -161,11 +164,14 @@ async def verify_path(path: str):
         return True, settings.file_server.serve_path, '/'
     else:
         path = path.lstrip('/')
-    base_path = os.path.abspath(settings.file_server.serve_path)
-    full_path = os.path.abspath(os.path.join(base_path, path.lstrip('/')))
-    check = bool(full_path.startswith(base_path) or not os.path.exists(full_path))
+    # If anyone knows a better way to do the following: mailto:hi@samicrusader.me
+    # aiopath.AsyncPath is basically the same as pathlib.Path
+    path = path.replace('/..', '')  # This is THE hack, but it should serve to boot anyone even trying to fuck around.
+    base_path = await aiopath.AsyncPath(settings.file_server.serve_path).resolve()
+    full_path = await aiopath.AsyncPath(base_path).joinpath(path.lstrip('/')).resolve()
+    check = bool(str(full_path).startswith(str(base_path)) or not await full_path.exists())
     if not check:
-        return False, None, None
+        return check, None, None
     actual_path = path
     return check, full_path, actual_path
 
@@ -204,7 +210,7 @@ async def page_thumbnail():
     elif actual_path != '/' and not actual_path.endswith('/'):
         return redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'),
                               302)
-    x, full_path, actual_path = verify_path(actual_path)
+    x, full_path, actual_path = await verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isfile(full_path) or \
             os.path.isfile(os.path.join(full_path, 'index.htm')) or \
             os.path.isfile(os.path.join(full_path, 'index.html')):
@@ -244,7 +250,7 @@ async def video_thumbnail():
     scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
     if not actual_path:
         await abort(500)
-    x, full_path, actual_path = verify_path(actual_path)
+    x, full_path, actual_path = await verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isdir(full_path) or \
             not mimetypes.guess_type(full_path)[0].split('/')[0] == 'video':
         await abort(404)
@@ -264,7 +270,7 @@ async def video_thumbnail():
             await abort(500)
         img = Image.frombytes('RGB', (frame.shape[1], frame.shape[0]), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         if scale:
-            img = ImageOps.fit(img, (32, 32), Image.ANTIALIAS)
+            img = ImageOps.fit(img, (32, 32), Image.LANCZOS)
         else:
             img.thumbnail((512, 512))
         with BytesIO() as bio:
@@ -288,7 +294,7 @@ async def image_thumbnail():
     scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
     if not actual_path:
         await abort(500)
-    x, full_path, actual_path = verify_path(actual_path)
+    x, full_path, actual_path = await verify_path(actual_path)
     if not x or not os.path.exists(full_path) or os.path.isdir(full_path) or \
             not mimetypes.guess_type(full_path)[0].split('/')[0] == 'image':
         await abort(404)
@@ -303,7 +309,7 @@ async def image_thumbnail():
     else:
         img = Image.open(full_path).convert('RGB')
         if scale:
-            img = ImageOps.fit(img, (32, 32), Image.ANTIALIAS)
+            img = ImageOps.fit(img, (32, 32), Image.LANCZOS)
         else:
             img.thumbnail((512, 512))
         with BytesIO() as bio:
@@ -324,37 +330,45 @@ async def root_directory():
 
 @app.route('/<path:actual_path>')
 async def serve(actual_path):
-    x, full_path, actual_path = await verify_path(actual_path)
+    x, full_path, actual_path = await verify_path(request.path.lstrip('/'))
     if not x or not os.path.isdir(full_path) and not os.path.isfile(full_path):
         await abort(404)
     elif os.path.isfile(full_path):  # handle file
         if os.path.isfile('.header.py') or os.path.isfile('.footer.py') or actual_path.endswith('/'):
             await abort(404)
         return await send_from_directory(settings.file_server.serve_path, actual_path)
-    elif os.path.isdir(full_path) and not actual_path.endswith('/'):  # handle directory-without-a-trailing-slash
-        return redirect(actual_path + '/', 302)
+    elif os.path.isdir(full_path) and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
+        return redirect('/'+actual_path + '/', 302)
     else:  # serve the directory listing
+        print('got directory listing')
         return await serve_dir(full_path, actual_path)
 
 
 async def serve_dir(full_path, actual_path):
-    if os.path.isfile(os.path.join(full_path, 'index.htm')):
+    print('lol')
+    if await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file():
+        print('1')
         return send_from_directory(full_path, 'index.htm')
-    elif os.path.isfile(os.path.join(full_path, 'index.html')):
+    elif await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
+        print('2')
         return send_from_directory(full_path, 'index.html')
+    print('not sending index.html')
     header_html = None
     footer_html = None
+    print('3')
     if settings.file_server.enable_header_files:
         search_paths = ['.header', '.header.md', '.header.htm', '.header.html', '.header.txt', '_h5ai.header.html',
                         '.footer', '.footer.md', '.footer.htm', '.footer.html', '.header.txt', '_h5ai.footer.html']
+        print('4')
         if settings.file_server.enable_header_scripts:
             search_paths.insert(6, '.header.py')
             search_paths.insert(-1, '.footer.py')
         for file in search_paths:
-            if not os.path.isfile(os.path.join(full_path, file)) \
+            if not await aiopath.AsyncPath(full_path).joinpath(file).is_file() \
                     or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
                 continue
-            data = open(os.path.join(full_path, file), 'r').read()
+            fh = await aiofiles.open(os.path.join(full_path, file), 'r')
+            data = await fh.read()
             if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
                 pass
             elif file.endswith('.md'):
@@ -371,11 +385,15 @@ async def serve_dir(full_path, actual_path):
                 header_html = data.strip()
             elif file.find('footer') > -1:
                 footer_html = data
+    print('done files, dirwalking...')
+    files = await dir_walk(actual_path, full_path)
+    print('done dirwalk')
     return await render_template('base.html',
                                  relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
-                                 modified_time=datetime.fromtimestamp(os.stat(full_path).st_mtime)
-                                 .strftime('%Y-%m-%dT%H:%M:%S+00:00'),
-                                 files=await dir_walk(actual_path, full_path), page='listing',
+                                 modified_time=datetime.fromtimestamp(
+                                     (await aiopath.AsyncPath(full_path).stat()).st_mtime
+                                 ).strftime('%Y-%m-%dT%H:%M:%S+00:00'), files=files,
+                                 page='listing',
                                  breadcrumb=(generate_breadcrumb(actual_path)
                                              if settings.file_server.use_interactive_breadcrumb else ''),
                                  header=header_html,
