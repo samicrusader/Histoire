@@ -1,7 +1,7 @@
 {% filter indent(width=8) %}{% if settings.file_server.use_interactive_breadcrumb %}
 <h3 class="ui header shift-left">{{ breadcrumb|safe }}</h3>
 {% else %}
-<h3 class="ui header breadcrumb shift-left">Index of {{ relative_path }}</h3>
+<h3 class="ui header breadcrumb shift-left">Index of {% if settings.file_server.base_path != '/' %}{{ settings.file_server.base_path }}{% endif %}{{ relative_path }}</h3>
 {% endif %}
 {% endfilter %}
 {% if header %}

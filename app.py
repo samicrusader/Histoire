@@ -70,19 +70,28 @@ class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
         self.app = asgi_app
         self.prefix = prefix
 
-    def __call__(self, environ, start_response):
-        if environ['PATH_INFO'].startswith(self.prefix):
-            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
-            environ['SCRIPT_NAME'] = self.prefix
-            return self.app(environ, start_response)
+    async def __call__(self, scope, receive, send):
+        if scope['path'].startswith(self.prefix):
+            scope['path'] = scope['path'][len(self.prefix):]
+            scope['raw_path'] = scope['path'][len(self.prefix.encode()):]
+            return await self.app(scope, receive, send)
         else:
-            start_response('404', [('Content-Type', 'text/plain')])
-            return ['404 Not Found'.encode()]
+            resp = b'404 Not Found\r\n'
+            await send({
+                'type': 'http.response.start',
+                'status': 404,
+                'headers': [(b'content-length', str(len(resp)).encode()), (b'content-type', b'text/plain')],
+            })
+            await send({
+                'type': 'http.response.body',
+                'body': resp,
+                'more_body': False,
+            })
 
 
 app = Quart(__name__, static_url_path='/_/assets', static_folder=os.path.join(settings.file_server.theme, 'assets'),
             instance_relative_config=False)
-# app.asgi_app = PrefixMiddleware(app.asgi_app, prefix=settings.file_server.base_path)
+app.asgi_app = PrefixMiddleware(app.asgi_app, prefix=settings.file_server.base_path)
 print(app.jinja_environment)
 app.jinja_options = {'loader': jinja2.FileSystemLoader([
     settings.file_server.theme,
@@ -179,10 +188,11 @@ async def verify_path(path: str):
 async def generate_breadcrumb(path: str):
     html = '<ol class="breadcrumb">\n'
     html += '    <li>Index of</li>'
+    base_path = ("/" if settings.file_server.base_path == "/" else settings.file_server.base_path+'/')
     if path != '/':
-        html += f'    <li><a href="{settings.file_server.base_path}/">/</a></li>\n'
+        html += f'    <li><a href="{base_path}">{base_path}</a></li>\n'
         paths = list(filter(None, path.split('/')))
-        overall = settings.file_server.base_path + '/'
+        overall = base_path
         for _path in paths:
             overall += f'{_path}/'
             if _path == paths[-1]:  # check for last path
@@ -190,7 +200,7 @@ async def generate_breadcrumb(path: str):
             else:
                 html += f'    <li><a href="{overall}">{_path}</a></li>\n'
     else:
-        html += '    <li class="active">/</li>\n'
+        html += f'    <li class="active">{base_path}</li>\n'
     html += '</ol>'
     return html
 
@@ -394,7 +404,7 @@ async def serve_dir(full_path, actual_path):
                                      (await aiopath.AsyncPath(full_path).stat()).st_mtime
                                  ).strftime('%Y-%m-%dT%H:%M:%S+00:00'), files=files,
                                  page='listing',
-                                 breadcrumb=(generate_breadcrumb(actual_path)
+                                 breadcrumb=(await generate_breadcrumb(actual_path)
                                              if settings.file_server.use_interactive_breadcrumb else ''),
                                  header=header_html,
                                  footer=footer_html,
