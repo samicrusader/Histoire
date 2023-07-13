@@ -92,7 +92,6 @@ class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
 app = Quart(__name__, static_url_path='/_/assets', static_folder=os.path.join(settings.file_server.theme, 'assets'),
             instance_relative_config=False)
 app.asgi_app = PrefixMiddleware(app.asgi_app, prefix=settings.file_server.base_path)
-print(app.jinja_environment)
 app.jinja_options = {'loader': jinja2.FileSystemLoader([
     settings.file_server.theme,
     os.path.join(os.path.dirname(os.path.realpath(__file__)), 'templates')
@@ -350,26 +349,19 @@ async def serve(actual_path):
     elif os.path.isdir(full_path) and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
         return redirect('/'+actual_path + '/', 302)
     else:  # serve the directory listing
-        print('got directory listing')
         return await serve_dir(full_path, actual_path)
 
 
 async def serve_dir(full_path, actual_path):
-    print('lol')
     if await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file():
-        print('1')
         return send_from_directory(full_path, 'index.htm')
     elif await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
-        print('2')
         return send_from_directory(full_path, 'index.html')
-    print('not sending index.html')
     header_html = None
     footer_html = None
-    print('3')
     if settings.file_server.enable_header_files:
         search_paths = ['.header', '.header.md', '.header.htm', '.header.html', '.header.txt', '_h5ai.header.html',
                         '.footer', '.footer.md', '.footer.htm', '.footer.html', '.header.txt', '_h5ai.footer.html']
-        print('4')
         if settings.file_server.enable_header_scripts:
             search_paths.insert(6, '.header.py')
             search_paths.insert(-1, '.footer.py')
@@ -395,9 +387,7 @@ async def serve_dir(full_path, actual_path):
                 header_html = data.strip()
             elif file.find('footer') > -1:
                 footer_html = data
-    print('done files, dirwalking...')
     files = await dir_walk(actual_path, full_path)
-    print('done dirwalk')
     return await render_template('base.html',
                                  relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
                                  modified_time=datetime.fromtimestamp(
