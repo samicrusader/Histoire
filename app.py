@@ -101,7 +101,7 @@ app.jinja_env.globals.update(settings=settings, os=os, version='1.0')
 app.url_map.strict_slashes = False
 
 
-async def dir_walk(mount: str, actual_path: str, full_path: Union[str, os.PathLike, aiopath.AsyncPath]):
+async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, aiopath.AsyncPath]):
     folders = list()
     files = list()
     async for _file in aiopath.scandir.scandir_async(full_path):
@@ -180,10 +180,10 @@ async def verify_path(path: str):
     path = path.lstrip('/')
     path = path.replace('/..', '')  # This is THE hack, but it should serve to boot anyone even trying to fuck around.
     path = aiopath.AsyncPath(path)
-    if path.parts[0] == settings.file_server.base_path.strip('/'): # If the first bit of the URL matches the base path,
+    if path.parts[0] == settings.file_server.base_path.strip('/'):  # If the first bit of the URL matches the base path,
         mount = path.parts[1]  # make the mount name and parts seem like the base path was never there!
         parts = path.parts[1:]
-    else: # Otherwise,
+    else:  # Otherwise,
         mount = path.parts[0]  # just leave the regular name and URL parts.
         parts = path.parts
     if mount not in settings.serve_paths.keys():
@@ -273,7 +273,7 @@ async def serve_static(actual_path):
 async def serve_assets(actual_path):
     resp = await make_response(
         await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath(settings.file_server.theme)
-                            .joinpath('assets'), actual_path)
+                                  .joinpath('assets'), actual_path)
     )
     resp.headers['Cache-Control'] = 'max-age=604800'  # assets don't really change much
     if aiopath.AsyncPath(actual_path).suffix.lstrip('.') in ['css', 'js']:  # unless they're used for styling
@@ -379,7 +379,7 @@ async def page_thumbnail():
 @app.route('/')
 async def root_directory():
     _, mount, full_path, actual_path = await verify_path('/')
-    return await serve_dir(mount, full_path, actual_path)
+    return await serve_dir(full_path, actual_path)
 
 
 @app.route('/<path:actual_path>')
@@ -394,10 +394,10 @@ async def serve(actual_path):
     elif await full_path.is_dir() and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
         return redirect('/' + str(actual_path) + '/', 302)
     else:  # serve the directory listing
-        return await serve_dir(mount, full_path, actual_path)
+        return await serve_dir(full_path, actual_path)
 
 
-async def serve_dir(mount, full_path, actual_path):
+async def serve_dir(full_path, actual_path):
     if await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file():
         return await send_from_directory(full_path, 'index.htm')
     elif await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
@@ -433,7 +433,7 @@ async def serve_dir(mount, full_path, actual_path):
                 header_html = data.strip()
             elif file.find('footer') > -1:
                 footer_html = data
-    files = await dir_walk(mount, actual_path, full_path)
+    files = await dir_walk(actual_path, full_path)
     return await render_template('base.html',
                                  relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
                                  modified_time=datetime.fromtimestamp(
