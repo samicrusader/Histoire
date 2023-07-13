@@ -102,7 +102,7 @@ app.jinja_env.globals.update(settings=settings, os=os, version='1.0')
 app.url_map.strict_slashes = False
 
 
-async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
+async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike, aiopath.AsyncPath]):
     folders = list()
     files = list()
     async for _file in aiopath.scandir.scandir_async(full_path):
@@ -116,8 +116,8 @@ async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
         file = dict()
         file['name'] = _file.name
         file['is_file'] = await _file.is_file()
-        file['path'] = urllib.parse.quote(os.path.join('/', settings.file_server.base_path, relative_path.lstrip('/'),
-                                                       _file.name))
+        file['path'] = urllib.parse.quote(str(await aiopath.AsyncPath('/').joinpath(settings.file_server.base_path)
+                                          .joinpath(relative_path.lstrip('/')).joinpath(_file.name).resolve()))
         file['modified_at_raw'] = stat.st_mtime
         if os.name != 'nt':
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
@@ -131,8 +131,9 @@ async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike]):
             s = round(int(stat.st_size) / math.pow(1024, dec), 2)
             file['size'] = '%s %s' % (s, i)
         if file['is_file']:
-            file['extension'] = aiopath.AsyncPath(os.path.join(full_path, _file.name)).suffix.lstrip('.')
-            mimetype = mimetypes.guess_type(os.path.join(full_path, _file.name))
+            f = aiopath.AsyncPath(full_path).joinpath(_file.name)
+            file['extension'] = f.suffix.lstrip('.')
+            mimetype = mimetypes.guess_type(str(f))
             if not mimetype[0]:
                 file['icon'] = 'bin'
                 file['mimetype'] = 'application/octet-stream'
@@ -332,14 +333,14 @@ async def root_directory():
 
 @app.route('/<path:actual_path>')
 async def serve(actual_path):
-    x, full_path, actual_path = await verify_path(request.path.lstrip('/'))
-    if not x or not os.path.isdir(full_path) and not os.path.isfile(full_path):
+    x, full_path, actual_path = await verify_path(actual_path)
+    if not x or not await full_path.exists():
         await abort(404)
-    elif os.path.isfile(full_path):  # handle file
-        if os.path.isfile('.header.py') or os.path.isfile('.footer.py') or actual_path.endswith('/'):
+    elif await full_path.is_file():  # handle file
+        if full_path.name == '.header.py' or full_path.name == '.footer.py' or request.path.endswith('/'):
             await abort(404)
         return await send_from_directory(settings.file_server.serve_path, actual_path)
-    elif os.path.isdir(full_path) and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
+    elif await full_path.is_dir() and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
         return redirect('/' + actual_path + '/', 302)
     else:  # serve the directory listing
         return await serve_dir(full_path, actual_path)
@@ -362,7 +363,7 @@ async def serve_dir(full_path, actual_path):
             if not await aiopath.AsyncPath(full_path).joinpath(file).is_file() \
                     or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
                 continue
-            fh = await aiofiles.open(os.path.join(full_path, file), 'r')
+            fh = await aiofiles.open(full_path.joinpath(file), 'r')
             data = await fh.read()
             if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
                 pass
@@ -374,7 +375,7 @@ async def serve_dir(full_path, actual_path):
                 data = f'<p>{markupsafe.escape(data)}</p>'
             elif file.endswith('.py'):
                 if settings.file_server.enable_header_scripts:
-                    py_obj = SourceFileLoader('render', os.path.join(full_path, file)).load_module()
+                    py_obj = SourceFileLoader('render', full_path.joinpath(file)).load_module()
                     data = py_obj.render()
             if file.find('header') > -1:
                 header_html = data.strip()
