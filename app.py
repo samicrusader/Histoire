@@ -172,7 +172,7 @@ async def dir_walk(relative_path: str, full_path: Union[str, os.PathLike, aiopat
 
 async def verify_path(path: str):
     if path == '/':
-        return True, settings.file_server.serve_path, '/'
+        return True, aiopath.AsyncPath(settings.file_server.serve_path), '/'
     else:
         path = path.lstrip('/')
     # If anyone knows a better way to do the following: mailto:hi@samicrusader.me
@@ -205,6 +205,12 @@ async def generate_breadcrumb(path: str):
         html += f'    <li class="active">{base_path}</li>\n'
     html += '</ol>'
     return html
+
+
+def _render_script(path: aiopath.AsyncPath, file: str):
+    py_obj = SourceFileLoader('render', os.path.join(path, file)).load_module()
+    data = py_obj.render()
+    return data
 
 
 def _thumb_image(img: Image, tiny: bool = False):
@@ -275,7 +281,10 @@ async def thumbnailer():
                 func = _get_video_thumb
             else:
                 await abort(500)
-            i = await loop.run_in_executor(pool, functools.partial(func, path=str(full_path), tiny=scale))
+            try:
+                i = await loop.run_in_executor(pool, functools.partial(func, path=str(full_path), tiny=scale))
+            except RuntimeError:
+                abort(500)
         fh = await aiofiles.open(fn, 'wb')
         await fh.write(i)
         await fh.close()
@@ -284,6 +293,7 @@ async def thumbnailer():
 
 @app.route('/_/page_thumbnail')
 async def page_thumbnail():
+    await abort(404)
     if not settings.file_server.enable_page_thumbnail:
         await abort(404)
     if not os.path.exists(settings.file_server.thumbimage_cache_dir):
@@ -375,8 +385,9 @@ async def serve_dir(full_path, actual_path):
                 data = f'<p>{markupsafe.escape(data)}</p>'
             elif file.endswith('.py'):
                 if settings.file_server.enable_header_scripts:
-                    py_obj = SourceFileLoader('render', full_path.joinpath(file)).load_module()
-                    data = py_obj.render()
+                    with concurrent.futures.ProcessPoolExecutor() as pool:
+                        data = await asyncio.get_running_loop()\
+                            .run_in_executor(pool, functools.partial(_render_script, path=full_path, file=file))
             if file.find('header') > -1:
                 header_html = data.strip()
             elif file.find('footer') > -1:
