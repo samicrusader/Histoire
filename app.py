@@ -91,8 +91,7 @@ class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
             })
 
 
-app = Quart(__name__, static_url_path='/_/assets', static_folder=os.path.join(settings.file_server.theme, 'assets'),
-            instance_relative_config=False)
+app = Quart(__name__, instance_relative_config=False)
 app.asgi_app = PrefixMiddleware(app.asgi_app, prefix=settings.file_server.base_path)
 app.jinja_options = {'loader': jinja2.FileSystemLoader([
     settings.file_server.theme,
@@ -259,6 +258,17 @@ def _get_video_thumb(path: str, tiny: bool = False):
         raise RuntimeError('failed to read video frame')
     img = Image.frombytes('RGB', (frame.shape[1], frame.shape[0]), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     return _thumb_image(img, tiny)
+
+
+@app.route('/_/static/<path:actual_path>')
+async def serve_static(actual_path):
+    return await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath('static'), actual_path)
+
+
+@app.route('/_/assets/<path:actual_path>')
+async def serve_assets(actual_path):
+    return await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath(settings.file_server.theme)
+                                     .joinpath('assets'), actual_path)
 
 
 @app.route('/_/thumbnailer')

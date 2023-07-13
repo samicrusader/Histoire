@@ -64,10 +64,10 @@
     {% filter indent(width=4) %}{{ footer|safe }}{% endfilter %}
 </div>
 {% endif %}
-<script src="{{ settings.file_server.base_path }}/_/assets/table.js"></script>
+<script src="{{ settings.file_server.base_path }}/_/static/table.js"></script>
 {% if enable_thumbnails %}
 {% if settings.file_server.enable_video_thumbnail or settings.file_server.enable_image_thumbnail %}
-<script src="{{ settings.file_server.base_path }}/_/assets/thumbnail.js"></script>
+<script src="{{ settings.file_server.base_path }}/_/static/thumbnail.js"></script>
 {% endif %}
 {% endif %}
 {% endfilter %}
