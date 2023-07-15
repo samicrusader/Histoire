@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Config
-import asyncio
 import logging
 import os
+import pydantic
 import yaml
 from configparse import Settings
 
@@ -22,6 +22,10 @@ try:
 except yaml.YAMLError as e:
     logging.critical(config_file_message.format(message=': ' + str(e)), exc_info=True)
     exit(1)
+except pydantic.ValidationError as e:
+    print(f'\033[91m{e}\033[00m')
+    logging.critical(config_file_message.format(message=f': \033[91m{e}\033[00m'), exc_info=True)
+    exit(1)
 
 import aiofiles
 import aiopath
@@ -34,6 +38,7 @@ import json
 import math
 import mimetypes
 import urllib.parse
+import uvicorn.middleware.proxy_headers
 from datetime import datetime
 from hypercorn.config import Config
 from hypercorn.asyncio import serve as hyperserve
@@ -70,16 +75,15 @@ mimetypes.add_type('video/mp2t', '.m2ts')
 
 
 # Quart
-class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
-    def __init__(self, asgi_app, prefix=''):
+class ASGIMiddleware(object):
+    def __init__(self, asgi_app):
         self.app = asgi_app
-        self.prefix = prefix
 
     async def __call__(self, scope, receive, send):
-        if scope['path'].startswith(self.prefix):
-            scope['path'] = scope['path'][len(self.prefix):]
-            scope['raw_path'] = scope['path'][len(self.prefix.encode()):]
-            return await self.app(scope, receive, send)
+        # Prefixes: https://stackoverflow.com/a/36033627
+        if scope['path'].startswith(settings.web_server.base_path):
+            scope['path'] = scope['path'][len(settings.web_server.base_path):]
+            scope['raw_path'] = scope['path'][len(settings.web_server.base_path.encode()):]
         else:
             resp = b'404 Not Found\r\n'
             await send({
@@ -92,10 +96,15 @@ class PrefixMiddleware(object):  # https://stackoverflow.com/a/36033627
                 'body': resp,
                 'more_body': False,
             })
+            return
+        if settings.web_server.use_forwarded:
+            return await uvicorn.middleware.proxy_headers.ProxyHeadersMiddleware(self.app)(scope, receive, send)
+        else:
+            return await self.app(scope, receive, send)
 
 
 app = Quart(__name__, instance_relative_config=False)
-app.asgi_app = PrefixMiddleware(app.asgi_app, prefix=settings.file_server.base_path)
+app.asgi_app = ASGIMiddleware(app.asgi_app)
 app.jinja_options = {'loader': jinja2.FileSystemLoader([
     settings.file_server.theme,
     os.path.join(os.path.dirname(os.path.realpath(__file__)), 'templates')
@@ -118,7 +127,7 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, aiopath.
         file = dict()
         file['name'] = _file.name
         file['is_file'] = await _file.is_file()
-        file['path'] = urllib.parse.quote(str(await aiopath.AsyncPath('/').joinpath(settings.file_server.base_path)
+        file['path'] = urllib.parse.quote(str(await aiopath.AsyncPath('/').joinpath(settings.web_server.base_path)
                                               .joinpath(str(actual_path).lstrip('/')).joinpath(_file.name).resolve()))
         file['modified_at_raw'] = stat.st_mtime
         if os.name != 'nt':
@@ -183,7 +192,7 @@ async def verify_path(path: str):
     path = path.lstrip('/')
     path = path.replace('/..', '')  # This is THE hack, but it should serve to boot anyone even trying to fuck around.
     path = aiopath.AsyncPath(path)
-    if path.parts[0] == settings.file_server.base_path.strip('/'):  # If the first bit of the URL matches the base path,
+    if path.parts[0] == settings.web_server.base_path.strip('/'):  # If the first bit of the URL matches the base path,
         mount = path.parts[1]  # make the mount name and parts seem like the base path was never there!
         parts = path.parts[1:]
     else:  # Otherwise,
@@ -213,7 +222,7 @@ async def verify_path(path: str):
 async def generate_breadcrumb(path: aiopath.AsyncPath):
     html = '<ol class="breadcrumb">\n'
     html += '    <li>Index of</li>'
-    base_path = ("/" if settings.file_server.base_path == "/" else settings.file_server.base_path + '/')
+    base_path = ("/" if settings.web_server.base_path == "/" else settings.web_server.base_path + '/')
     if path != '/':
         html += f'    <li><a href="{base_path}">{base_path}</a></li>\n'
         paths = list(filter(None, path.parts))
@@ -458,8 +467,7 @@ if __name__ == '__main__':
     hypercorn_config = Config()
     hypercorn_config.access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     hypercorn_config.accesslog = "-"
-    hypercorn_config.bind = ['127.0.0.1:5000']
+    hypercorn_config.bind = ['0.0.0.0:5000']
     hypercorn_config.errorlog = hypercorn_config.accesslog
     hypercorn_config.include_date_header = False
-    print(hypercorn_config.include_date_header)
     asyncio.run(hyperserve(app, hypercorn_config))

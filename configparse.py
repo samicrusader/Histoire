@@ -6,8 +6,19 @@ from pydantic_settings import BaseSettings
 app_path = os.path.realpath(os.path.dirname(__file__))
 
 
-class FileServer(BaseModel):
+class WebServer(BaseModel):
     base_path: Optional[str] = ""
+    use_forwarded: Optional[bool] = False
+    forwarded_for_depth: Optional[int] = 1
+
+    @validator('base_path')
+    def base_path_validate(cls, path):
+        if path.endswith('/'):
+            return path.rstrip('/')
+        return path
+
+
+class FileServer(BaseModel):
     theme: Optional[str] = os.path.join(app_path, 'themes', 'default')
     show_dot_files: Optional[bool] = False
     use_interactive_breadcrumb: Optional[bool] = True
@@ -19,15 +30,8 @@ class FileServer(BaseModel):
     enable_image_thumbnail: Optional[bool] = False
     enable_video_remux: Optional[bool] = False
     enable_video_thumbnail: Optional[bool] = False
-    server_url: Optional[str] = 'http://127.0.0.1:5000'
     thumbimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'thumbimage')
     wkhtmltoimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'wkhtmltoimage')
-
-    @validator('base_path')
-    def base_path_validate(cls, path):
-        if path.endswith('/'):
-            return path.rstrip('/')
-        return path
 
     @validator('theme')
     def theme_exists(cls, path):
@@ -37,18 +41,6 @@ class FileServer(BaseModel):
         elif not os.path.exists(os.path.join(base_path, 'assets')):
             raise ValueError(f'Path {os.path.join(base_path, "assets")} does not exist')
         return base_path
-
-    @validator('server_url')
-    def server_url_validate(cls, url, values, **kwargs):
-        if url.endswith('/'):
-            url = url.rstrip('/')
-        if 'base_path' in values and values['base_path']:
-            return os.path.join(url, values['base_path'].lstrip('/'))
-        return url
-
-
-class ServedPaths(BaseModel):
-    pass
 
 
 class Mountpoint(BaseModel):
@@ -69,5 +61,6 @@ class Mountpoint(BaseModel):
 
 
 class Settings(BaseSettings):
+    web_server: WebServer
     file_server: FileServer
     serve_paths: Dict[str, Mountpoint]

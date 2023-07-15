@@ -1,6 +1,12 @@
-file_server:
-  # base_path is the base path of the web directory ("/histoire" = "http://example.com/histoire/example/path") (optional, defaults to "/")
+web_server:
+  # base_path is the base path of the web directory ("/histoire" = "http://example.com/histoire/example/path") (optional, defaults to "/". Can be "none" for just mount paths)
   #base_path: "/"
+  # use_forwarded enables the ability to override various request states (like IP address) with the `X-Forwarded-`* headers (optional, defaults to false, KEEP IT ON false UNLESS YOU ARE ACTIVELY USING REVERSE PROXIES (e.g. Nginx/CloudFlare) TO ACCESS YOUR SITE. THIS HEADER CAN BE SPOOFED.)
+  #use_forwarded: false
+  # forwarded_for_depth allows you to specify how many values to trust for `X-Forwarded-`*. This is only used if `use_forwarded` is enabled. (optional, defaults to 1, increase as needed)
+  #forwarded_for_depth: 1
+
+file_server:
   # theme points to a folder with theme files, see README.md for information (optional, defaults to "default")
   #theme: "default"
   # show_dot_files says what it does on the tin (optional, default is false)
@@ -22,8 +28,6 @@ file_server:
   #enable_image_thumbnail: false
   # enable_video_thumbnail enables video thumbnails (optional, default is false)
   #enable_video_thumbnail: false
-  # server_url is the URL pointing to your web server excluding the base path (optional, default is "http://127.0.0.1:5000", you NEED to change this)
-  #server_url: "http://127.0.0.1:5000"
   # thumbimage_cache_dir and wkhtmltoimage_cache_dir are cache directories for the page thumbnailing (optional, both point to cache/ in the location of configparse.py)
   #thumbimage_cache_dir: "/tmp/histoire/thumbimage"
   #wkhtmltoimage_cache_dir: "/tmp/histoire/wkhtmltoimage"
