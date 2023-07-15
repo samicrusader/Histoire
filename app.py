@@ -391,7 +391,7 @@ async def page_thumbnail():
 @app.route('/')
 async def root_directory():
     _, mount, full_path, actual_path = await verify_path('/')
-    return await serve_dir(full_path, actual_path)
+    return await serve(actual_path)
 
 
 @app.route('/<path:actual_path>')
@@ -406,14 +406,17 @@ async def serve(actual_path):
     elif await full_path.is_dir() and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
         return redirect('/' + str(actual_path) + '/', 302)
     else:  # serve the directory listing
-        return await serve_dir(full_path, actual_path)
+        if await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file():
+            return await send_from_directory(full_path, 'index.htm')
+        elif await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
+            return await send_from_directory(full_path, 'index.html')
+        elif settings.serve_paths[mount].type == 'listing':
+            return await serve_dir(full_path, actual_path)
+        else:
+            await abort(404)
 
 
 async def serve_dir(full_path, actual_path):
-    if await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file():
-        return await send_from_directory(full_path, 'index.htm')
-    elif await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
-        return await send_from_directory(full_path, 'index.html')
     header_html = None
     footer_html = None
     if settings.file_server.enable_header_files:
