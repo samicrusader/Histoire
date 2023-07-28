@@ -13,7 +13,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.css" integrity="sha512-rErSjI34XKsATVf+BW6GnuWVmj7imdMR7AIyb4ydHhiMFewUiJOeN9bYO35iCgdG+3Bxkl0GkAs0E8hrDYooLA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/unescaped-markup/prism-unescaped-markup.min.css" integrity="sha512-g33HCZ23fueSK96JEeoy9DelAlu7Ry5mtxqLk+zlEiPj7NIpFI6T9mybOvQxjBN50FALFDCviMXiLqWJcFwzaA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
-    {% filter indent(width=4) %}{% include page+'/head.html' %}{% endfilter %} {# Internal template #}
+    {% filter indent(width=4) %}{% include page+'/head.html' %}{% endfilter %} {# Internal template #}{% if not thumbnail %}
+    <link rel="stylesheet" href="{{ settings.file_server.base_path }}/_/assets/style.css">{% else %}
+    {# The following hack corrects wkhtmltoimage behaviors that I have not a clue about why they happen. #}
+    <link rel="stylesheet" href="{{ settings.file_server.theme }}/assets/style.css">
+    <style>html { zoom: 90%; }</style>{% endif %}
     {% filter indent(width=4) %}{% include 'html_head.html' %}{% endfilter %} {# Theme template #}
 </head>
 

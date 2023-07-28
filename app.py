@@ -4,8 +4,6 @@ import aiofiles
 import aiopath
 import asyncio
 import base64
-import concurrent.futures
-import functools
 import jinja2
 import json
 import logging
@@ -223,7 +221,7 @@ async def verify_path(path: str):
 
 async def generate_breadcrumb(path: aiopath.AsyncPath):
     html = '<ol class="breadcrumb">\n'
-    html += '    <li>Index of</li>'
+    html += '    <li>Index of</li>\n'
     base_path = ("/" if settings.web_server.base_path == "/" else settings.web_server.base_path + '/')
     if path != '/':
         html += f'    <li><a href="{base_path}">{base_path}</a></li>\n'
@@ -274,6 +272,18 @@ def _get_video_thumb(path: str, tiny: bool = False):
     return _thumb_image(img, tiny)
 
 
+def _page_thumbnail(path: str, tiny: None = None):
+    # wkhtmltoimage chokes on objects that fail to load
+    try:
+        i = imgkit.from_string(path, False, options={
+            'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
+            'enable-local-file-access': '', 'height': 600, 'log-level': 'info', 'width': 1000, 'quiet': '',
+            'load-media-error-handling': 'ignore', 'load-error-handling': 'ignore'
+        })
+    except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
+        i = err.args[1]
+    return i
+
 @app.route('/_/static/<path:actual_path>')
 async def serve_static(actual_path):
     resp = await make_response(
@@ -303,16 +313,21 @@ async def thumbnailer():
     thumbimage_cache_dir = aiopath.AsyncPath(settings.file_server.thumbimage_cache_dir)
     await thumbimage_cache_dir.mkdir(parents=True, exist_ok=True)
 
-    scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
+    scale = None
     actual_path = request.args.get('path', None)
     if not actual_path:
         await abort(500)
     x, mount, full_path, actual_path = await verify_path(actual_path)
-    if not x or not await full_path.exists() or await full_path.is_dir():
+    if not x or not await full_path.exists():
         await abort(404)
-    file_type = mimetypes.guess_type(str(full_path))[0].split('/')[0]
-    if file_type not in ['image', 'video']:
-        await abort(404)
+    elif await full_path.is_dir():
+        file_type = 'page'
+    else:
+        file_type = mimetypes.guess_type(str(full_path))[0].split('/')[0]
+        if file_type not in ['image', 'video']:
+            await abort(404)
+        else:
+            scale = request.args.get('scale', False, type=lambda v: v.lower() == 'true')
 
     fn = base64.urlsafe_b64encode(str(actual_path).encode()).decode().lstrip('==')
     if scale:
@@ -332,6 +347,19 @@ async def thumbnailer():
             if not settings.file_server.enable_video_thumbnail:
                 await abort(404)
             func = _get_video_thumb
+        elif file_type == 'page':
+            if not settings.file_server.enable_page_thumbnail or \
+                    await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file() or \
+                    await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
+                await abort(404)
+            elif not request.args.get('path', None).endswith('/'):  # handle directory-without-a-trailing-slash
+                return redirect('/_/thumbnailer?path=/' + str(actual_path) + '/', 302)
+            wxhtmltoimage_cache_dir = aiopath.AsyncPath(settings.file_server.wkhtmltoimage_cache_dir)
+            await wxhtmltoimage_cache_dir.mkdir(parents=True, exist_ok=True)
+            page = await serve_dir(full_path, actual_path, thumbnail=True)
+            page = await page.data
+            func = _page_thumbnail
+            full_path = page.decode('utf8')  # Hack, but works.
         else:
             await abort(500)
         try:
@@ -341,50 +369,6 @@ async def thumbnailer():
         fh = await aiofiles.open(fn, 'wb')
         await fh.write(i)
         await fh.close()
-    return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
-
-
-@app.route('/_/page_thumbnail')
-async def page_thumbnail():
-    await abort(404)
-    if not settings.file_server.enable_page_thumbnail:
-        await abort(404)
-    if not os.path.exists(settings.file_server.thumbimage_cache_dir):
-        os.makedirs(settings.file_server.thumbimage_cache_dir, exist_ok=True)
-    elif not os.path.exists(settings.file_server.wkhtmltoimage_cache_dir):
-        os.makedirs(settings.file_server.wkhtmltoimage_cache_dir, exist_ok=True)
-
-    actual_path = request.args.get('path', None)
-    if not actual_path:
-        await abort(500)
-    elif actual_path != '/' and not actual_path.endswith('/'):
-        return redirect(os.path.join(settings.file_server.server_url, f'_/page_thumbnail?path={actual_path}/'), 302)
-    x, full_path, actual_path = await verify_path(actual_path)
-    if not x or not os.path.exists(full_path) or os.path.isfile(full_path) or \
-            os.path.isfile(os.path.join(full_path, 'index.htm')) or \
-            os.path.isfile(os.path.join(full_path, 'index.html')):
-        await abort(404)
-
-    fn = os.path.join(settings.file_server.thumbimage_cache_dir,
-                      base64.urlsafe_b64encode(actual_path.encode()).decode())
-    if os.path.exists(fn):
-        fh = open(fn, 'rb')
-        i = fh.read()
-        fh.close()
-    else:
-        # wxhtmltoimage chokes on objects that fail to load
-        url = os.path.join(settings.file_server.server_url + f'/{actual_path.strip("/")}/') + '?thumbs=false'
-        try:
-            i = imgkit.from_url(url, False, options={
-                'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
-                'enable-local-file-access': '', 'height': 550, 'log-level': 'error', 'width': 980, 'quiet': '',
-                'load-media-error-handling': 'ignore', 'load-error-handling': 'ignore'
-            })
-        except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
-            i = err.args[1]
-        fh = open(fn, 'wb')
-        fh.write(i)
-        fh.close()
     return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
 
 
@@ -416,7 +400,7 @@ async def serve(actual_path):
             await abort(404)
 
 
-async def serve_dir(full_path, actual_path):
+async def serve_dir(full_path, actual_path, thumbnail: bool = False):
     header_html = None
     footer_html = None
     if settings.file_server.enable_header_files:
@@ -429,21 +413,19 @@ async def serve_dir(full_path, actual_path):
             if not await aiopath.AsyncPath(full_path).joinpath(file).is_file() \
                     or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
                 continue
-            fh = await aiofiles.open(full_path.joinpath(file), 'r')
-            data = await fh.read()
-            if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
-                pass
-            elif file.endswith('.md'):
-                # Code without a language needs to be marked as having no language, so it stylizes properly.
-                # CommonMark does this with the <pre> tag which PrismJS does not like.
-                data = commonmark.commonmark(data).replace('<code>', '<code class="language-none">')
-            elif file.endswith('.txt') or file == '.header' or file == '.footer':
-                data = f'<p>{markupsafe.escape(data)}</p>'
-            elif file.endswith('.py'):
-                if settings.file_server.enable_header_scripts:
-                    with concurrent.futures.ProcessPoolExecutor() as pool:
-                        data = await asyncio.get_running_loop() \
-                               .run_in_executor(pool, functools.partial(_render_script, path=full_path, file=file))
+            if file.endswith('.py'):
+                data = await run_sync(_render_script)(path=full_path, file=file)
+            else:
+                fh = await aiofiles.open(full_path.joinpath(file), 'r')
+                data = await fh.read()
+                if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
+                    pass
+                elif file.endswith('.md'):
+                    # Code without a language needs to be marked as having no language, so it stylizes properly.
+                    # CommonMark does this with the <pre> tag which PrismJS does not like.
+                    data = commonmark.commonmark(data).replace('<code>', '<code class="language-none">')
+                elif file.endswith('.txt') or file == '.header' or file == '.footer':
+                    data = f'<p>{markupsafe.escape(data)}</p>'
             if file.find('header') > -1:
                 header_html = data.strip()
             elif file.find('footer') > -1:
@@ -458,12 +440,13 @@ async def serve_dir(full_path, actual_path):
             breadcrumb=(await generate_breadcrumb(actual_path)
                         if settings.file_server.use_interactive_breadcrumb else ''),
             header=header_html, footer=footer_html,
-            enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true')
+            enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'), thumbnail=thumbnail
         )
     )
     # Wed, 05 Jul 2023 06:43:12 GMT for /public
     resp.date = datetime.utcfromtimestamp((await aiopath.AsyncPath(full_path).stat()).st_mtime)
     return resp
+
 
 if __name__ == '__main__':
     hypercorn_config = Config()
