@@ -20,6 +20,7 @@ from datetime import datetime
 from hypercorn.config import Config
 from hypercorn.asyncio import serve as _serve
 from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
+from quart.utils import run_sync
 from typing import Union
 from configparse import Settings
 
@@ -296,7 +297,6 @@ async def serve_assets(actual_path):
 
 @app.route('/_/thumbnailer')
 async def thumbnailer():
-    loop = asyncio.get_running_loop()
     # FIXME: page_thumbnail needs to somehow be shoehorned in here
     if not settings.file_server.enable_thumbnailer:
         await abort(404)
@@ -324,21 +324,20 @@ async def thumbnailer():
         i = await fh.read()
         await fh.close()
     else:
-        with concurrent.futures.ProcessPoolExecutor() as pool:
-            if file_type == 'image':
-                if not settings.file_server.enable_image_thumbnail:
-                    await abort(404)
-                func = _get_image_thumb
-            elif file_type == 'video':
-                if not settings.file_server.enable_video_thumbnail:
-                    await abort(404)
-                func = _get_video_thumb
-            else:
-                await abort(500)
-            try:
-                i = await loop.run_in_executor(pool, functools.partial(func, path=str(full_path), tiny=scale))
-            except RuntimeError:
-                abort(500)
+        if file_type == 'image':
+            if not settings.file_server.enable_image_thumbnail:
+                await abort(404)
+            func = _get_image_thumb
+        elif file_type == 'video':
+            if not settings.file_server.enable_video_thumbnail:
+                await abort(404)
+            func = _get_video_thumb
+        else:
+            await abort(500)
+        try:
+            i = await run_sync(func)(path=str(full_path), tiny=scale)
+        except RuntimeError:
+            abort(500)
         fh = await aiofiles.open(fn, 'wb')
         await fh.write(i)
         await fh.close()
