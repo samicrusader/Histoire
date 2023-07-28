@@ -5,6 +5,7 @@
         const ts = localStorage.getItem("sort");
         if (ts) {
             let sort = ts.split("_")[1]
+            let col;
             switch(ts.split("_")[0]) {
                 case "name":
                     col = 1;
@@ -15,7 +16,7 @@
                 case "size":
                     col = 3
                     break
-                case _:
+                default:
                     return
             }
             let htmlcol = document.querySelectorAll("table th")[col];

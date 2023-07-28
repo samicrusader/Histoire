@@ -1,9 +1,26 @@
 #!/usr/bin/env python3
 # Config
+import aiofiles
+import aiopath
+import asyncio
+import base64
+import concurrent.futures
+import functools
+import jinja2
+import json
 import logging
+import math
+import mimetypes
 import os
 import pydantic
+import urllib.parse
+import uvicorn.middleware.proxy_headers
 import yaml
+from datetime import datetime
+from hypercorn.config import Config
+from hypercorn.asyncio import serve
+from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
+from typing import Union
 from configparse import Settings
 
 config_file = os.environ.get('HISTOIRE_CONFIG', './config.yaml')
@@ -27,24 +44,6 @@ except pydantic.ValidationError as e:
     logging.critical(config_file_message.format(message=f': \033[91m{e}\033[00m'), exc_info=True)
     exit(1)
 
-import aiofiles
-import aiopath
-import asyncio
-import base64
-import concurrent.futures
-import functools
-import jinja2
-import json
-import math
-import mimetypes
-import urllib.parse
-import uvicorn.middleware.proxy_headers
-from datetime import datetime
-from hypercorn.config import Config
-from hypercorn.asyncio import serve as hyperserve
-from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
-from typing import Union
-
 if settings.file_server.enable_image_thumbnail or settings.file_server.enable_video_thumbnail:
     from io import BytesIO
     from PIL import Image, ImageOps
@@ -57,6 +56,7 @@ if settings.file_server.enable_header_files:
 if settings.file_server.enable_page_thumbnail:
     import imgkit
 if settings.file_server.enable_video_thumbnail:
+    # noinspection PyUnresolvedReferences
     import cv2
 
 # Handle mimetypes
@@ -113,6 +113,7 @@ app.jinja_env.globals.update(settings=settings, os=os, version='1.0')
 app.url_map.strict_slashes = False
 
 
+# noinspection PyUnresolvedReferences
 async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, aiopath.AsyncPath]):
     folders = list()
     files = list()
@@ -473,4 +474,4 @@ if __name__ == '__main__':
     hypercorn_config.bind = ['0.0.0.0:5000']
     hypercorn_config.errorlog = hypercorn_config.accesslog
     hypercorn_config.include_date_header = False
-    asyncio.run(hyperserve(app, hypercorn_config))
+    asyncio.run(serve(app, hypercorn_config))

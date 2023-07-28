@@ -1,23 +1,25 @@
 import os
 from typing import Optional, Dict
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings
 
 app_path = os.path.realpath(os.path.dirname(__file__))
 
 
+# noinspection PyMethodParameters
 class WebServer(BaseModel):
     base_path: Optional[str] = ""
     use_forwarded: Optional[bool] = False
     forwarded_for_depth: Optional[int] = 1
 
-    @validator('base_path')
+    @field_validator('base_path')
     def base_path_validate(cls, path):
         if path.endswith('/'):
             return path.rstrip('/')
         return path
 
 
+# noinspection PyMethodParameters
 class FileServer(BaseModel):
     theme: Optional[str] = os.path.join(app_path, 'themes', 'default')
     show_dot_files: Optional[bool] = False
@@ -33,7 +35,7 @@ class FileServer(BaseModel):
     thumbimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'thumbimage')
     wkhtmltoimage_cache_dir: Optional[str] = os.path.join(app_path, 'cache', 'wkhtmltoimage')
 
-    @validator('theme')
+    @field_validator('theme')
     def theme_exists(cls, path):
         base_path = os.path.join(os.path.realpath(os.path.dirname(__file__)), 'themes', path)
         if not os.path.exists(base_path):
@@ -43,17 +45,19 @@ class FileServer(BaseModel):
         return base_path
 
 
+# noinspection PyMethodParameters
 class Mountpoint(BaseModel):
     path: str
     type: Optional[str] = 'listing'
 
-    @validator('path')
+    @field_validator('path')
     def serve_path_exists(cls, path):
         if not os.path.exists(path):
             raise ValueError(f'Path {path} does not exist')
         return path
 
-    @validator('type')
+    # noinspection PyShadowingBuiltins
+    @field_validator('type')
     def validate_type(cls, type):
         if type not in ['listing', 'static']:
             raise ValueError(f'Invalid mount type `{type}`. Use either `listing` or `static`.')
