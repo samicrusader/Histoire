@@ -18,7 +18,7 @@ import uvicorn.middleware.proxy_headers
 import yaml
 from datetime import datetime
 from hypercorn.config import Config
-from hypercorn.asyncio import serve
+from hypercorn.asyncio import serve as _serve
 from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
 from typing import Union
 from configparse import Settings
@@ -444,7 +444,7 @@ async def serve_dir(full_path, actual_path):
                 if settings.file_server.enable_header_scripts:
                     with concurrent.futures.ProcessPoolExecutor() as pool:
                         data = await asyncio.get_running_loop() \
-                            .run_in_executor(pool, functools.partial(_render_script, path=full_path, file=file))
+                               .run_in_executor(pool, functools.partial(_render_script, path=full_path, file=file))
             if file.find('header') > -1:
                 header_html = data.strip()
             elif file.find('footer') > -1:
@@ -466,7 +466,6 @@ async def serve_dir(full_path, actual_path):
     resp.date = datetime.utcfromtimestamp((await aiopath.AsyncPath(full_path).stat()).st_mtime)
     return resp
 
-
 if __name__ == '__main__':
     hypercorn_config = Config()
     hypercorn_config.access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
@@ -474,4 +473,4 @@ if __name__ == '__main__':
     hypercorn_config.bind = ['0.0.0.0:5000']
     hypercorn_config.errorlog = hypercorn_config.accesslog
     hypercorn_config.include_date_header = False
-    asyncio.run(serve(app, hypercorn_config))
+    asyncio.run(_serve(app, hypercorn_config))
