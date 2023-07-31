@@ -403,6 +403,9 @@ async def serve(actual_path):
 async def serve_dir(full_path, actual_path, thumbnail: bool = False):
     header_html = None
     footer_html = None
+    has_markdown = False
+    has_code_block = False
+
     if settings.file_server.enable_header_files:
         search_paths = ['.header', '.header.md', '.header.htm', '.header.html', '.header.txt', '_h5ai.header.html',
                         '.footer', '.footer.md', '.footer.htm', '.footer.html', '.header.txt', '_h5ai.footer.html']
@@ -424,8 +427,11 @@ async def serve_dir(full_path, actual_path, thumbnail: bool = False):
                     # Code without a language needs to be marked as having no language, so it stylizes properly.
                     # CommonMark does this with the <pre> tag which PrismJS does not like.
                     data = commonmark.commonmark(data).replace('<code>', '<code class="language-none">')
+                    has_markdown = True
                 elif file.endswith('.txt') or file == '.header' or file == '.footer':
                     data = f'<p>{markupsafe.escape(data)}</p>'
+            if data.find('<code>') > -1:
+                has_code_block = True
             if file.find('header') > -1:
                 header_html = data.strip()
             elif file.find('footer') > -1:
@@ -440,7 +446,8 @@ async def serve_dir(full_path, actual_path, thumbnail: bool = False):
             breadcrumb=(await generate_breadcrumb(actual_path)
                         if settings.file_server.use_interactive_breadcrumb else ''),
             header=header_html, footer=footer_html,
-            enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'), thumbnail=thumbnail
+            enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'), thumbnail=thumbnail,
+            has_markdown=has_markdown, has_code_block=has_code_block
         )
     )
     # Wed, 05 Jul 2023 06:43:12 GMT for /public
