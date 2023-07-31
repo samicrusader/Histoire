@@ -11,6 +11,7 @@ import math
 import mimetypes
 import os
 import pydantic
+import signal
 import urllib.parse
 import uvicorn.middleware.proxy_headers
 import yaml
@@ -273,7 +274,11 @@ def _get_video_thumb(path: str, tiny: bool = False):
 
 
 def _page_thumbnail(path: str, tiny: None = None):
-    # wkhtmltoimage chokes on objects that fail to load
+    # https://stackoverflow.com/a/2282656
+    def _handle_timeout(signum, frame):
+        raise RuntimeError('wkhtmltoimage timed out, aborting page thumbnail...')
+    signal.signal(signal.SIGALRM, _handle_timeout)
+    signal.alarm(10)
     try:
         i = imgkit.from_string(path, False, options={
             'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
@@ -281,8 +286,13 @@ def _page_thumbnail(path: str, tiny: None = None):
             'load-media-error-handling': 'ignore', 'load-error-handling': 'ignore'
         })
     except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
+        # wkhtmltoimage chokes on objects that fail to load, return the error
+        # FIXME: Replace this dumb wrapper and just call wkhtmltoimage directly.
         i = err.args[1]
+    finally:
+        signal.alarm(0)
     return i
+
 
 @app.route('/_/static/<path:actual_path>')
 async def serve_static(actual_path):
