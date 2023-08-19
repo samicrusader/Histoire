@@ -17,6 +17,7 @@ import yaml
 from datetime import datetime
 from hypercorn.config import Config
 from hypercorn.asyncio import serve as _serve
+from natsort import natsorted
 from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
 from quart.utils import run_sync
 from typing import Union
@@ -178,7 +179,7 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, aiopath.
             file['path'] += '/'
             file['mimetype'] = 'text/directory'
             folders.append(file)
-    return sorted(folders, key=lambda _i: _i['name'].lower()) + sorted(files, key=lambda _i: _i['name'].lower())
+    return natsorted(folders, key=lambda _i: _i['name'].lower()) + natsorted(files, key=lambda _i: _i['name'].lower())
 
 
 async def verify_path(path: str):
@@ -283,6 +284,7 @@ def _page_thumbnail(path: str, tiny: None = None):
     except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
         i = err.args[1]
     return i
+
 
 @app.route('/_/static/<path:actual_path>')
 async def serve_static(actual_path):
