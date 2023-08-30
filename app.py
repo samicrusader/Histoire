@@ -2,6 +2,7 @@
 # Config
 import aiofiles
 import aiopath
+import argparse
 import asyncio
 import base64
 import jinja2
@@ -11,6 +12,7 @@ import math
 import mimetypes
 import os
 import pydantic
+import traceback
 import urllib.parse
 import uvicorn.middleware.proxy_headers
 import yaml
@@ -459,10 +461,23 @@ async def serve_dir(full_path, actual_path, thumbnail: bool = False):
 
 
 if __name__ == '__main__':
+    # ArgumentParser setup
+    parser = argparse.ArgumentParser(
+        description='Histoire',
+        prog='python3 app.py'
+    )
+    parser.add_argument('--bind', '-b', default='127.0.0.1:5000', help='ip:port to listen on (default 127.0.0.1:5000)')
+    args = parser.parse_args()
     hypercorn_config = Config()
     hypercorn_config.access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     hypercorn_config.accesslog = "-"
     hypercorn_config.bind = ['0.0.0.0:5000']
     hypercorn_config.errorlog = hypercorn_config.accesslog
     hypercorn_config.include_date_header = False
-    asyncio.run(_serve(app, hypercorn_config))
+    try:
+        asyncio.run(_serve(app, hypercorn_config))
+    except Exception as e:
+        traceback.print_exception(e)
+        exit(1)
+    else:
+        exit(0)
