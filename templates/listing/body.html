@@ -1,14 +1,15 @@
-{% filter indent(width=8) %}{% if settings.file_server.use_interactive_breadcrumb %}
-<h3 class="ui header shift-left">{{ breadcrumb|safe }}</h3>
+{% if settings.file_server.use_interactive_breadcrumb %}
+<h3 class="ui header shift-left">
+{% filter indent(width=4) %}
+    {{ breadcrumb|safe }}
+{% endfilter %}
+</h3>
 {% else %}
 <h3 class="ui header breadcrumb shift-left">Index of {% if settings.file_server.base_path != '/' %}{{ settings.file_server.base_path }}{% endif %}{{ relative_path }}</h3>
 {% endif %}
-{% endfilter %}
 {% if header %}
-<div class="ui header external-header">
-{{ header|safe }}</div>
+<div class="ui header external-header">{{ header|safe }}</div>
 {% endif %}
-{% filter indent(width=8) %}
 <table class="file-listing">
     <thead>
         <tr>
@@ -36,9 +37,9 @@
                 {% if enable_thumbnails %}
                 {% if not thumbnail %}
                 {% if file['mimetype'].split('/')[0] == 'video' and settings.file_server.enable_video_thumbnail %}
-                <img loading="lazy" class="file-listing thumbnail" src="{{ settings.file_server.base_path }}/_/thumbnailer?path={{ file['path'] }}&scale=true" width="16" height="16" />
+                <img loading="lazy" class="file-listing thumbnail" src="{{ settings.web_server.base_path }}/_/thumbnailer?path={{ file['path_without_base'] }}&scale=true" width="16" height="16" />
                 {% elif file['mimetype'].split('/')[0] == 'image' and settings.file_server.enable_image_thumbnail %}
-                <img loading="lazy" class="file-listing thumbnail" src="{{ settings.file_server.base_path }}/_/thumbnailer?path={{ file['path'] }}&scale=true" width="16" height="16" />
+                <img loading="lazy" class="file-listing thumbnail" src="{{ settings.web_server.base_path }}/_/thumbnailer?path={{ file['path_without_base'] }}&scale=true" width="16" height="16" />
                 {% else %}
                 <span class="fiv-sqo fiv-icon-{{ file['icon'] }}"></span>
                 {% endif %}
@@ -63,13 +64,12 @@
 {% endif %}
 {% if footer %}
 <div class="ui header external-header">
-    {% filter indent(width=4) %}{{ footer|safe }}{% endfilter %}
+{% filter indent(width=4) %}{{ footer|safe }}{% endfilter %}
 </div>
 {% endif %}
-<script src="{{ settings.file_server.base_path }}/_/static/table.js"></script>
+<script src="{{ settings.web_server.base_path }}/_/static/table.js"></script>
 {% if enable_thumbnails %}
 {% if not thumbnail and (settings.file_server.enable_video_thumbnail or settings.file_server.enable_image_thumbnail) %}
-<script src="{{ settings.file_server.base_path }}/_/static/thumbnail.js"></script>
+<script src="{{ settings.web_server.base_path }}/_/static/thumbnail.js"></script>
 {% endif %}
 {% endif %}
-{% endfilter %}

@@ -113,6 +113,8 @@ app.jinja_options = {'loader': jinja2.FileSystemLoader([
     os.path.join(os.path.dirname(os.path.realpath(__file__)), 'templates')
 ])}
 app.jinja_env.globals.update(settings=settings, os=os, version='1.0')
+app.jinja_env.lstrip_blocks = True
+app.jinja_env.trim_blocks = True
 app.url_map.strict_slashes = False
 
 
@@ -133,6 +135,8 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, Path]):
         file['is_file'] = await _file.is_file()
         file['path'] = urllib.parse.quote(str(await Path('/').joinpath(settings.web_server.base_path)
                                               .joinpath(str(actual_path).lstrip('/')).joinpath(_file.name).resolve()))
+        file['path_without_base'] = urllib.parse.quote(str(await Path('/').joinpath(str(actual_path).lstrip('/'))
+                                                           .joinpath(_file.name).resolve()))
         file['modified_at_raw'] = stat.st_mtime
         if os.name != 'nt':
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
@@ -446,13 +450,16 @@ async def serve_dir(full_path, actual_path, thumbnail: bool = False):
         await render_template(
             'base.html',
             relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
+            relative_path_with_base=(f'{settings.web_server.base_path}/{actual_path}'
+                                     if actual_path != '/' else f'{settings.web_server.base_path}/'),
             modified_time=datetime.utcfromtimestamp((await Path(full_path).stat()).st_mtime)
             .strftime('%Y-%m-%dT%H:%M:%S+00:00'), files=files, page='listing',
             breadcrumb=(await generate_breadcrumb(actual_path)
                         if settings.file_server.use_interactive_breadcrumb else ''),
             header=header_html, footer=footer_html,
             enable_thumbnails=request.args.get('thumbs', True, type=lambda v: v.lower() == 'true'), thumbnail=thumbnail,
-            has_markdown=has_markdown, has_code_block=has_code_block
+            has_markdown=has_markdown, has_code_block=has_code_block, host_url=request.host_url.rstrip('/'),
+            hostname=request.host
         )
     )
     # Wed, 05 Jul 2023 06:43:12 GMT for /public
