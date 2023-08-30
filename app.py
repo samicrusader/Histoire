@@ -57,7 +57,13 @@ if settings.file_server.enable_header_files:
     if settings.file_server.enable_header_scripts:
         from importlib.machinery import SourceFileLoader
 if settings.file_server.enable_page_thumbnail:
-    import imgkit
+    if settings.file_server.page_thumbnail_backend == 'wkhtmltoimage':
+        import imgkit
+    elif settings.file_server.page_thumbnail_backend == 'qtwebengine5':
+        from PySide2.QtCore import Qt, QTimer, QByteArray, QBuffer, QIODevice, QUrl
+        from PySide2.QtGui import QPixmap
+        from PySide2.QtWidgets import QApplication
+        from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 if settings.file_server.enable_video_thumbnail:
     # noinspection PyUnresolvedReferences
     import cv2
@@ -281,15 +287,48 @@ def _get_video_thumb(path: str, tiny: bool = False):
 
 
 def _page_thumbnail(path: str, tiny: None = None):
-    # wkhtmltoimage chokes on objects that fail to load
-    try:
-        i = imgkit.from_string(path, False, options={
-            'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
-            'enable-local-file-access': '', 'height': 600, 'log-level': 'info', 'width': 1000, 'quiet': '',
-            'load-media-error-handling': 'ignore', 'load-error-handling': 'ignore'
-        })
-    except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
-        i = err.args[1]
+    fh = open('/mnt/e/page.html', 'w')
+    fh.write(path)
+    fh.close()
+    if settings.file_server.page_thumbnail_backend == 'qtwebengine5':
+        class Render(QWebEngineView):
+            def __init__(self, html):
+                self.img = None
+                self.app = QApplication(['', '--no-sandbox'])
+                QWebEngineView.__init__(self)
+                self.setAttribute(Qt.WA_DontShowOnScreen)
+                self.settings().setAttribute(QWebEngineSettings.ShowScrollBars, False)
+                self.loadFinished.connect(self._loadfinished)
+                self.setHtml(html, QUrl.fromLocalFile('./'))
+                self.app.exec_()
+
+            def _callable(self):
+                size = self.contentsRect()
+                pixmap = QPixmap(size.width(), size.height())
+                self.page().view().render(pixmap)
+                ba = QByteArray()
+                buf = QBuffer(ba)
+                buf.open(QIODevice.WriteOnly)
+                pixmap.save(buf, "PNG")
+                self.img = ba.data()
+                self.close()
+                self.app.quit()
+
+            def _loadfinished(self, result):
+                self.show()
+                QTimer.singleShot(3000, lambda: self._callable())  # FIXME: Have this replaced with an event that checks when the DOM has fully loaded (including scripts)
+
+        return Render(path).img
+    elif settings.file_server.page_thumbnail_backend == 'wkhtmltoimage':
+        # wkhtmltoimage chokes on objects that fail to load
+        try:
+            i = imgkit.from_string(path, False, options={
+                'cache-dir': settings.file_server.wkhtmltoimage_cache_dir, 'format': 'jpg', 'disable-javascript': '',
+                'enable-local-file-access': '', 'height': 600, 'log-level': 'info', 'width': 1000, 'quiet': '',
+                'load-media-error-handling': 'ignore', 'load-error-handling': 'ignore'
+            })
+        except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
+            i = err.args[1]
     return i
 
 
@@ -343,7 +382,8 @@ async def thumbnailer():
         fn += '_scale'
     fn = thumbimage_cache_dir.joinpath(fn)
 
-    if await fn.exists():
+    #if await fn.exists():
+    if 1 == 2:
         fh = await aiofiles.open(fn, 'rb')
         i = await fh.read()
         await fh.close()

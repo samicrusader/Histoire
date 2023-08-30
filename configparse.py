@@ -29,6 +29,7 @@ class FileServer(BaseModel):
     enable_dlbox: Optional[bool] = False
     enable_thumbnailer: Optional[bool] = False
     enable_page_thumbnail: Optional[bool] = False
+    page_thumbnail_backend: Optional[str] = 'wkhtmltoimage'
     enable_image_thumbnail: Optional[bool] = False
     enable_video_remux: Optional[bool] = False
     enable_video_thumbnail: Optional[bool] = False
@@ -43,6 +44,13 @@ class FileServer(BaseModel):
         elif not os.path.exists(os.path.join(base_path, 'assets')):
             raise ValueError(f'Path {os.path.join(base_path, "assets")} does not exist')
         return base_path
+
+    #@field_validator('page_thumbnail_backend')
+    #def valid_backend(self, backend):
+    #    if backend in ['wkhtmltoimage', 'qtwebengine5']:
+    #        return backend
+    #    else:
+    #        raise ValueError('lol')
 
 
 # noinspection PyMethodParameters
