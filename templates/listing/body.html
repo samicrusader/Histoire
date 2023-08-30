@@ -61,7 +61,7 @@
 </table>
 {% if settings.file_server.enable_dlbox %}
 <div class="dlbox">
-    <code>wget -m -np -c -R "index.html*" "{{ host_url }}{{ settings.web_server.base_path }}{{ relative_path }}/"</code>
+    <code>wget -m -np -c -R "index.html*" "{{ host_url }}{{ settings.web_server.base_path }}{{ relative_path.rstrip('/') }}/"</code>
 </div>
 {% endif %}
 {% if footer %}
