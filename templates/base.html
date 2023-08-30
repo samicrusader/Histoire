@@ -27,7 +27,9 @@
     <div class="ui container">
         {%+ filter indent(width=8) %}
         {% include 'header.html' %}{# Theme template #}
-        {% include page+'/body.html' +%}{# Internal template #}
+        {%+ endfilter +%}
+        {% include page+'/body.html' %}{# Internal template, this page will indent itself due to fuckery with PrismJS and <code> #}
+        {%+ filter indent(width=8) %}
         {% include 'footer.html' %}{# Theme template #}
         {%+ endfilter +%}
     </div>
