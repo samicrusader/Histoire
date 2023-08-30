@@ -282,6 +282,7 @@ def _get_video_thumb(path: str, tiny: bool = False):
 
 
 def _page_thumbnail(path: str, tiny: None = None):
+    location, path = path.split('||', maxsplit=1)
     if settings.file_server.page_thumbnail_backend == 'qtwebengine5':
         from PySide2.QtCore import Qt, QTimer, QByteArray, QBuffer, QIODevice, QUrl
         from PySide2.QtGui import QPixmap
@@ -291,12 +292,13 @@ def _page_thumbnail(path: str, tiny: None = None):
         class Render(QWebEngineView):
             def __init__(self, html):
                 self.img = None
-                self.app = QApplication(['', '--no-sandbox'])
+                self.app = QApplication(['', '--no-sandbox', '--allow-file-access-from-files',
+                                         '--disable-web-security'])
                 QWebEngineView.__init__(self)
                 self.setAttribute(Qt.WA_DontShowOnScreen)
                 self.settings().setAttribute(QWebEngineSettings.ShowScrollBars, False)
                 self.loadFinished.connect(self._loadfinished)
-                self.setHtml(html, QUrl.fromLocalFile('./'))
+                self.setHtml(html, QUrl.fromLocalFile('file://'+location))
                 self.setGeometry(0, 0, 1000, 600)
                 self.app.exec_()
 
@@ -413,7 +415,7 @@ async def thumbnailer():
                 page = await serve_dir(full_path, actual_path, thumbnail=True)
                 page = await page.data
                 func = _page_thumbnail
-                full_path = page.decode('utf8')  # Hack, but works.
+                full_path = str(full_path) + '||' + page.decode('utf8')  # Hack, but works.
             else:
                 await abort(500)
             try:
