@@ -8,7 +8,9 @@
 <h3 class="ui header breadcrumb shift-left">Index of {% if settings.file_server.base_path != '/' %}{{ settings.file_server.base_path }}{% endif %}{{ relative_path }}</h3>
 {% endif %}
 {% if header %}
-<div class="ui header external-header">{{ header|safe }}</div>
+<div class="ui header external-header">
+    {{ header|safe }}
+</div>
 {% endif %}
 <table class="file-listing">
     <thead>
@@ -67,9 +69,22 @@
 {% filter indent(width=4) %}{{ footer|safe }}{% endfilter %}
 </div>
 {% endif %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
 <script src="{{ settings.web_server.base_path }}/_/static/table.js"></script>
 {% if enable_thumbnails %}
 {% if not thumbnail and (settings.file_server.enable_video_thumbnail or settings.file_server.enable_image_thumbnail) %}
 <script src="{{ settings.web_server.base_path }}/_/static/thumbnail.js"></script>
 {% endif %}
+{% endif %}
+{% if not thumbnail %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.1.0/tablesort.min.js" integrity="sha256-p3wukcf2d2jxbVnlqPDO9t4AAjnl42D2aIzrK4S0X6w=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.1.0/sorts/tablesort.number.min.js" integrity="sha256-ra1pWQ7MfuVIolZ/phcEXegs9m1ehXaCNI8cmc3gJEs=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.1.0/sorts/tablesort.filesize.min.js" integrity="sha256-qNYlSpvv2lsmkcarYkQBkUzVcHKaml/BHcGxcSNsyrU=" crossorigin="anonymous"></script>
+{% endif %}
+{% if has_code_block %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js" integrity="sha512-9khQRAUBYEJDCDVP2yw3LRUQvjJ0Pjx0EShmaQjcHa6AXiOv6qHQu9lCAIR8O+/D8FtaCoJ2c0Tf9Xo7hYH01Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js" integrity="sha512-SkmBfuA2hqjzEVpmnMt/LINrjop3GKWqsuLSSB3e7iBmYK7JuWw4ldmmxwD9mdm2IRTTi0OxSAfEGvgEi0i2Kw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/diff-highlight/prism-diff-highlight.min.js" integrity="sha512-gNqZmXmzLWyg/00PDvTnX4q533JiXbxFdTWJC5hfOyHORHXOC6PtDP5Mm2Vpa4faIMONoKQADwhhbst9Ok1/oQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/keep-markup/prism-keep-markup.min.js" integrity="sha512-dM7y7FL7I43Zij3bPyIiAOl4ebzK01P8pcEUb7RvOKdXlxjSPebYBnkDB+S05PuNGlLFjvzVNRzuctj5A4P3Kg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/unescaped-markup/prism-unescaped-markup.min.js" integrity="sha512-QaQkFkE1LvUW6IaC7zLY4EsrNHuMWwepQv2RWyg4q/3+KI7K2WwtNEe6IPuYE7ZWkNxdKEnLJRuyuSnvbTUB3Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 {% endif %}

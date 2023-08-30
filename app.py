@@ -433,13 +433,18 @@ async def serve_dir(full_path, actual_path, thumbnail: bool = False):
                 if file.endswith('.html') or file.endswith('.htm') or file.startswith('_h5ai'):
                     pass
                 elif file.endswith('.md'):
+                    data = commonmark.commonmark(data)
                     # Code without a language needs to be marked as having no language, so it stylizes properly.
                     # CommonMark does this with the <pre> tag which PrismJS does not like.
-                    data = commonmark.commonmark(data).replace('<code>', '<code class="language-none">')
+                    data = data.replace('<code>', '<code class="language-none">')
+                    # CommonMark's Python module also is very stupid regarding code blocks, ending on a newline
+                    # regardless of whether there's a trailing newline in the code.
+                    # This will probably get some false positive
+                    data = data.replace('\n</code></pre>', '</code></pre>')
                     has_markdown = True
                 elif file.endswith('.txt') or file == '.header' or file == '.footer':
                     data = f'<p>{markupsafe.escape(data)}</p>'
-            if data.find('<code>') > -1:
+            if data.find('<code') > -1:
                 has_code_block = True
             if file.find('header') > -1:
                 header_html = data.strip()
