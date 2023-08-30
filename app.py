@@ -25,6 +25,7 @@ from hypercorn.config import Config
 from hypercorn.asyncio import serve as _serve
 from natsort import natsorted
 from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
+from quart.utils import run_sync
 from typing import Union
 from configparse import Settings
 
@@ -286,6 +287,7 @@ def _page_thumbnail(path: str, tiny: None = None):
         from PySide2.QtGui import QPixmap
         from PySide2.QtWidgets import QApplication
         from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
+
         class Render(QWebEngineView):
             def __init__(self, html):
                 self.img = None
@@ -313,7 +315,8 @@ def _page_thumbnail(path: str, tiny: None = None):
 
             def _loadfinished(self, result):
                 self.show()
-                QTimer.singleShot(3000, lambda: self._callable())  # FIXME: Have this replaced with an event that checks when the DOM has fully loaded (including scripts)
+                # FIXME: Have this replaced with an event that checks when the DOM has fully loaded (including scripts)
+                QTimer.singleShot(3000, lambda: self._callable())
 
         return Render(path).img
     elif settings.file_server.page_thumbnail_backend == 'wkhtmltoimage':
@@ -383,8 +386,7 @@ async def thumbnailer():
         fn += '_scale'
     fn = thumbimage_cache_dir.joinpath(fn)
 
-    #if await fn.exists():
-    if 1 == 2:
+    if await fn.exists():
         fh = await aiofiles.open(fn, 'rb')
         i = await fh.read()
         await fh.close()
