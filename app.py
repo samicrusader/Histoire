@@ -143,7 +143,7 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, Path]):
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%-m/%-d/%Y %-I:%M:%S %p')
         else:
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%m/%d/%Y %I:%M:%S %p')
-        if int(stat.st_size) == 0:
+        if not file['is_file']:
             file['size'] = '-'
         else:
             dec = int(math.floor(math.log(int(stat.st_size), 1024)))
