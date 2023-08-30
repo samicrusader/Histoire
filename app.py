@@ -5,12 +5,15 @@ import aiopath
 import argparse
 import asyncio
 import base64
+import concurrent.futures
+import functools
 import jinja2
 import json
 import logging
 import math
 import mimetypes
 import os
+import pathlib
 import pydantic
 import traceback
 import urllib.parse
@@ -22,7 +25,6 @@ from hypercorn.config import Config
 from hypercorn.asyncio import serve as _serve
 from natsort import natsorted
 from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
-from quart.utils import run_sync
 from typing import Union
 from configparse import Settings
 
@@ -316,6 +318,8 @@ def _page_thumbnail(path: str, tiny: None = None):
         return Render(path).img
     elif settings.file_server.page_thumbnail_backend == 'wkhtmltoimage':
         import imgkit
+        wxhtmltoimage_cache_dir = pathlib.Path(settings.file_server.wkhtmltoimage_cache_dir)
+        wxhtmltoimage_cache_dir.mkdir(parents=True, exist_ok=True)
         # wkhtmltoimage chokes on objects that fail to load
         try:
             i = imgkit.from_string(path, False, options={
@@ -351,6 +355,7 @@ async def serve_assets(actual_path):
 
 @app.route('/_/thumbnailer')
 async def thumbnailer():
+    loop = asyncio.get_running_loop()
     # FIXME: page_thumbnail needs to somehow be shoehorned in here
     if not settings.file_server.enable_thumbnailer:
         await abort(404)
@@ -384,33 +389,32 @@ async def thumbnailer():
         i = await fh.read()
         await fh.close()
     else:
-        if file_type == 'image':
-            if not settings.file_server.enable_image_thumbnail:
-                await abort(404)
-            func = _get_image_thumb
-        elif file_type == 'video':
-            if not settings.file_server.enable_video_thumbnail:
-                await abort(404)
-            func = _get_video_thumb
-        elif file_type == 'page':
-            if not settings.file_server.enable_page_thumbnail or \
-                    await Path(full_path).joinpath('index.htm').is_file() or \
-                    await Path(full_path).joinpath('index.html').is_file():
-                await abort(404)
-            elif not request.args.get('path', None).endswith('/'):  # handle directory-without-a-trailing-slash
-                return redirect('/_/thumbnailer?path=/' + str(actual_path) + '/', 302)
-            wxhtmltoimage_cache_dir = Path(settings.file_server.wkhtmltoimage_cache_dir)
-            await wxhtmltoimage_cache_dir.mkdir(parents=True, exist_ok=True)
-            page = await serve_dir(full_path, actual_path, thumbnail=True)
-            page = await page.data
-            func = _page_thumbnail
-            full_path = page.decode('utf8')  # Hack, but works.
-        else:
-            await abort(500)
-        try:
-            i = await run_sync(func)(path=str(full_path), tiny=scale)
-        except RuntimeError:
-            abort(500)
+        with concurrent.futures.ProcessPoolExecutor() as pool:
+            if file_type == 'image':
+                if not settings.file_server.enable_image_thumbnail:
+                    await abort(404)
+                func = _get_image_thumb
+            elif file_type == 'video':
+                if not settings.file_server.enable_video_thumbnail:
+                    await abort(404)
+                func = _get_video_thumb
+            elif file_type == 'page':
+                if not settings.file_server.enable_page_thumbnail or \
+                        await Path(full_path).joinpath('index.htm').is_file() or \
+                        await Path(full_path).joinpath('index.html').is_file():
+                    await abort(404)
+                elif not request.args.get('path', None).endswith('/'):  # handle directory-without-a-trailing-slash
+                    return redirect('/_/thumbnailer?path=/' + str(actual_path) + '/', 302)
+                page = await serve_dir(full_path, actual_path, thumbnail=True)
+                page = await page.data
+                func = _page_thumbnail
+                full_path = page.decode('utf8')  # Hack, but works.
+            else:
+                await abort(500)
+            try:
+                i = await loop.run_in_executor(pool, functools.partial(func, path=str(full_path), tiny=scale))
+            except RuntimeError:
+                abort(500)
         fh = await aiofiles.open(fn, 'wb')
         await fh.write(i)
         await fh.close()
