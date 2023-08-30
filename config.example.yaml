@@ -24,6 +24,8 @@ file_server:
   #enable_thumbnailer: false
   # enable_page_thumbnail enables embed thumbnails for each folder index (optional, default is false, there is some setup required see README.md)
   #enable_page_thumbnail: false
+  # page_thumbnail_backend allows you to set which backend is used for generating thumbnails of directory index pages (optional, default is wkhtmltoimage, available options are wkhtmltoimage and qtwebengine5)
+  #page_thumbnail_backend: "wkhtmltoimage"
   # enable_image_thumbnail enables image thumbnails (optional, default is false)
   #enable_image_thumbnail: false
   # enable_video_thumbnail enables video thumbnails (optional, default is false)

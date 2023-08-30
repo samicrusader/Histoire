@@ -332,6 +332,8 @@ def _page_thumbnail(path: str, tiny: None = None):
             })
         except UnicodeDecodeError as err:  # https://github.com/jarrekk/imgkit/issues/82#issuecomment-1167242672
             i = err.args[1]
+    else:
+        return ValueError('Invalid page thumbnail generator backend')
     return i
 
 

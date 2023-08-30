@@ -45,12 +45,13 @@ class FileServer(BaseModel):
             raise ValueError(f'Path {os.path.join(base_path, "assets")} does not exist')
         return base_path
 
-    #@field_validator('page_thumbnail_backend')
-    #def valid_backend(self, backend):
-    #    if backend in ['wkhtmltoimage', 'qtwebengine5']:
-    #        return backend
-    #    else:
-    #        raise ValueError('lol')
+    @field_validator('page_thumbnail_backend')
+    def validate_page_thumbnail_backend(self, backend):
+        if backend in ['wkhtmltoimage', 'qtwebengine5']:
+            return backend
+        else:
+            raise ValueError(f'Invalid backend for page thumbnail generation: {backend}\n'
+                             'Available backends are: "wkhtmltoimage", "qtwebengine5"')
 
 
 # noinspection PyMethodParameters
