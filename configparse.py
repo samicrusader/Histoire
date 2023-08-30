@@ -46,7 +46,7 @@ class FileServer(BaseModel):
         return base_path
 
     @field_validator('page_thumbnail_backend')
-    def validate_page_thumbnail_backend(self, backend):
+    def validate_page_thumbnail_backend(cls, backend):
         if backend in ['wkhtmltoimage', 'qtwebengine5']:
             return backend
         else:
