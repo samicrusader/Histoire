@@ -145,6 +145,8 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, Path]):
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%m/%d/%Y %I:%M:%S %p')
         if not file['is_file']:
             file['size'] = '-'
+        elif int(stat.st_size) == 0:
+            file['size'] = '0 B'
         else:
             dec = int(math.floor(math.log(int(stat.st_size), 1024)))
             i = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')[dec]
