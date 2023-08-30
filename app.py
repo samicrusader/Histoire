@@ -297,6 +297,7 @@ def _page_thumbnail(path: str, tiny: None = None):
                 self.settings().setAttribute(QWebEngineSettings.ShowScrollBars, False)
                 self.loadFinished.connect(self._loadfinished)
                 self.setHtml(html, QUrl.fromLocalFile('./'))
+                self.setGeometry(0, 0, 1000, 600)
                 self.app.exec_()
 
             def _callable(self):

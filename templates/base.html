@@ -14,9 +14,11 @@
     {% if not thumbnail %}
     <link rel="stylesheet" href="{{ settings.web_server.base_path }}/_/assets/style.css">
     {% else %}
-    {# The following hack corrects wkhtmltoimage behaviors that I have not a clue about why they happen. #}
     <link rel="stylesheet" href="{{ settings.file_server.theme }}/assets/style.css">
+    {% if settings.file_server.page_thumbnail_backend == 'wkhtmltoimage' %}
+    {# The following hack corrects wkhtmltoimage behaviors that I have not a clue about why they happen. #}
     <style>html { zoom: 90%; }</style>
+    {% endif %}
     {% endif %}
     {%+ filter indent(width=4) %}
     {% include 'html_head.html' %}{# Theme template #}

@@ -1,6 +1,6 @@
 import os
 from typing import Optional, Dict
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 app_path = os.path.realpath(os.path.dirname(__file__))
@@ -47,11 +47,32 @@ class FileServer(BaseModel):
 
     @field_validator('page_thumbnail_backend')
     def validate_page_thumbnail_backend(cls, backend):
-        if backend in ['wkhtmltoimage', 'qtwebengine5']:
-            return backend
-        else:
+        if backend not in ['wkhtmltoimage', 'qtwebengine5']:
             raise ValueError(f'Invalid backend for page thumbnail generation: {backend}\n'
                              'Available backends are: "wkhtmltoimage", "qtwebengine5"')
+        else:
+            return backend
+
+    @model_validator(mode='after')
+    def check_page_thumbnail_backend_exists(self):
+        if not self.enable_page_thumbnail:
+            return self
+        if self.page_thumbnail_backend == 'wkhtmltoimage':
+            try:
+                import imgkit.config
+            except ImportError:
+                raise ValueError('The wkhtmltoimage page thumbnail backend requires the imgkit Python module to be '
+                                 'installed.')
+            else:
+                imgkit.config.get_wkhtmltoimage()
+                return self
+        elif self.page_thumbnail_backend == 'qtwebengine5':
+            try:
+                import PySide2.QtWebEngine
+            except ImportError:
+                raise ValueError('The qtwebengine5 page thumbnail backend requires PySide2 to be installed.')
+            else:
+                return self
 
 
 # noinspection PyMethodParameters
