@@ -14,6 +14,7 @@ import pydantic
 import urllib.parse
 import uvicorn.middleware.proxy_headers
 import yaml
+from anyio import Path
 from datetime import datetime
 from hypercorn.config import Config
 from hypercorn.asyncio import serve as _serve
@@ -114,7 +115,7 @@ app.url_map.strict_slashes = False
 
 
 # noinspection PyUnresolvedReferences
-async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, aiopath.AsyncPath]):
+async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, Path]):
     folders = list()
     files = list()
     async for _file in aiopath.scandir.scandir_async(full_path):
@@ -128,7 +129,7 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, aiopath.
         file = dict()
         file['name'] = _file.name
         file['is_file'] = await _file.is_file()
-        file['path'] = urllib.parse.quote(str(await aiopath.AsyncPath('/').joinpath(settings.web_server.base_path)
+        file['path'] = urllib.parse.quote(str(await Path('/').joinpath(settings.web_server.base_path)
                                               .joinpath(str(actual_path).lstrip('/')).joinpath(_file.name).resolve()))
         file['modified_at_raw'] = stat.st_mtime
         if os.name != 'nt':
@@ -143,7 +144,7 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, aiopath.
             s = round(int(stat.st_size) / math.pow(1024, dec), 2)
             file['size'] = '%s %s' % (s, i)
         if file['is_file']:
-            f = aiopath.AsyncPath(full_path).joinpath(_file.name)
+            f = Path(full_path).joinpath(_file.name)
             file['extension'] = f.suffix.lstrip('.')
             mimetype = mimetypes.guess_type(str(f))
             if not mimetype[0]:
@@ -187,12 +188,12 @@ async def verify_path(path: str):
     if path == '/':
         if '_' not in settings.serve_paths.keys():  # If the root mount doesn't exist, and we're hitting the root dir,
             return False, None, None, None  # indicate a failed pull (404's in `serve`),
-        return True, '_', aiopath.AsyncPath(settings.serve_paths['_'].path), '/'  # otherwise return the root mount
+        return True, '_', Path(settings.serve_paths['_'].path), '/'  # otherwise return the root mount
     # If anyone knows a better way to do the following: mailto:hi@samicrusader.me
-    # aiopath.AsyncPath is basically the same as pathlib.Path
+    # anyio.Path is basically the same as pathlib.Path
     path = path.lstrip('/')
     path = path.replace('/..', '')  # This is THE hack, but it should serve to boot anyone even trying to fuck around.
-    path = aiopath.AsyncPath(path)
+    path = Path(path)
     if path.parts[0] == settings.web_server.base_path.strip('/'):  # If the first bit of the URL matches the base path,
         mount = path.parts[1]  # make the mount name and parts seem like the base path was never there!
         parts = path.parts[1:]
@@ -202,17 +203,17 @@ async def verify_path(path: str):
     if mount not in settings.serve_paths.keys():
         if '_' in settings.serve_paths.keys():  # use root mount as root mount point
             mount = '_'
-            mount_serve_path = aiopath.AsyncPath(settings.serve_paths['_'].path)
+            mount_serve_path = Path(settings.serve_paths['_'].path)
             mount_file_path = path
         else:
             return False, None, None, None
     else:
-        mount_serve_path = aiopath.AsyncPath(settings.serve_paths[parts[0]].path)
-        mount_file_path = str(aiopath.AsyncPath(*parts[1:]))
+        mount_serve_path = Path(settings.serve_paths[parts[0]].path)
+        mount_file_path = str(Path(*parts[1:]))
         if mount_file_path == '.':
             mount_file_path = ''
-    base_path = await aiopath.AsyncPath(mount_serve_path).resolve()  # base serve path
-    full_path = await aiopath.AsyncPath(base_path).joinpath(str(mount_file_path).lstrip('/')).resolve()  # file path
+    base_path = await Path(mount_serve_path).resolve()  # base serve path
+    full_path = await Path(base_path).joinpath(str(mount_file_path).lstrip('/')).resolve()  # file path
     check = bool(str(full_path).startswith(str(base_path)) or not await full_path.exists())
     if not check:  # check is if the file path starts with the base path and if the file actually exists
         return check, None, None, None
@@ -220,7 +221,7 @@ async def verify_path(path: str):
     return check, mount, full_path, actual_path  # this is basically to manage directories and prevent traversal via 404
 
 
-async def generate_breadcrumb(path: aiopath.AsyncPath):
+async def generate_breadcrumb(path: Path):
     html = '<ol class="breadcrumb">\n'
     html += '    <li>Index of</li>\n'
     base_path = ("/" if settings.web_server.base_path == "/" else settings.web_server.base_path + '/')
@@ -240,7 +241,7 @@ async def generate_breadcrumb(path: aiopath.AsyncPath):
     return html
 
 
-def _render_script(path: aiopath.AsyncPath, file: str):
+def _render_script(path: Path, file: str):
     py_obj = SourceFileLoader('render', os.path.join(path, file)).load_module()
     data = py_obj.render()
     return data
@@ -289,7 +290,7 @@ def _page_thumbnail(path: str, tiny: None = None):
 @app.route('/_/static/<path:actual_path>')
 async def serve_static(actual_path):
     resp = await make_response(
-        await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath('static'), actual_path)
+        await send_from_directory(Path(__file__).parent.joinpath('static'), actual_path)
     )
     resp.headers['Cache-Control'] = 'max-age=604800, must-revalidate'  # static files can change between updates
     return resp
@@ -298,11 +299,11 @@ async def serve_static(actual_path):
 @app.route('/_/assets/<path:actual_path>')
 async def serve_assets(actual_path):
     resp = await make_response(
-        await send_from_directory(aiopath.AsyncPath(__file__).parent.joinpath(settings.file_server.theme)
+        await send_from_directory(Path(__file__).parent.joinpath(settings.file_server.theme)
                                   .joinpath('assets'), actual_path)
     )
     resp.headers['Cache-Control'] = 'max-age=604800'  # assets don't really change much
-    if aiopath.AsyncPath(actual_path).suffix.lstrip('.') in ['css', 'js']:  # unless they're used for styling
+    if Path(actual_path).suffix.lstrip('.') in ['css', 'js']:  # unless they're used for styling
         resp.headers['Cache-Control'] += ', must-revalidate'  # in which case you want that being fresh if "stale"
     return resp
 
@@ -312,7 +313,7 @@ async def thumbnailer():
     # FIXME: page_thumbnail needs to somehow be shoehorned in here
     if not settings.file_server.enable_thumbnailer:
         await abort(404)
-    thumbimage_cache_dir = aiopath.AsyncPath(settings.file_server.thumbimage_cache_dir)
+    thumbimage_cache_dir = Path(settings.file_server.thumbimage_cache_dir)
     await thumbimage_cache_dir.mkdir(parents=True, exist_ok=True)
 
     scale = None
@@ -351,12 +352,12 @@ async def thumbnailer():
             func = _get_video_thumb
         elif file_type == 'page':
             if not settings.file_server.enable_page_thumbnail or \
-                    await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file() or \
-                    await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
+                    await Path(full_path).joinpath('index.htm').is_file() or \
+                    await Path(full_path).joinpath('index.html').is_file():
                 await abort(404)
             elif not request.args.get('path', None).endswith('/'):  # handle directory-without-a-trailing-slash
                 return redirect('/_/thumbnailer?path=/' + str(actual_path) + '/', 302)
-            wxhtmltoimage_cache_dir = aiopath.AsyncPath(settings.file_server.wkhtmltoimage_cache_dir)
+            wxhtmltoimage_cache_dir = Path(settings.file_server.wkhtmltoimage_cache_dir)
             await wxhtmltoimage_cache_dir.mkdir(parents=True, exist_ok=True)
             page = await serve_dir(full_path, actual_path, thumbnail=True)
             page = await page.data
@@ -392,9 +393,9 @@ async def serve(actual_path):
     elif await full_path.is_dir() and not request.path.endswith('/'):  # handle directory-without-a-trailing-slash
         return redirect('/' + str(actual_path) + '/', 302)
     else:  # serve the directory listing
-        if await aiopath.AsyncPath(full_path).joinpath('index.htm').is_file():
+        if await Path(full_path).joinpath('index.htm').is_file():
             return await send_from_directory(full_path, 'index.htm')
-        elif await aiopath.AsyncPath(full_path).joinpath('index.html').is_file():
+        elif await Path(full_path).joinpath('index.html').is_file():
             return await send_from_directory(full_path, 'index.html')
         elif settings.serve_paths[mount].type == 'listing':
             return await serve_dir(full_path, actual_path)
@@ -415,7 +416,7 @@ async def serve_dir(full_path, actual_path, thumbnail: bool = False):
             search_paths.insert(6, '.header.py')
             search_paths.insert(-1, '.footer.py')
         for file in search_paths:
-            if not await aiopath.AsyncPath(full_path).joinpath(file).is_file() \
+            if not await Path(full_path).joinpath(file).is_file() \
                     or file.find('header') > -1 and header_html or file.find('footer') > -1 and footer_html:
                 continue
             if file.endswith('.py'):
@@ -443,7 +444,7 @@ async def serve_dir(full_path, actual_path, thumbnail: bool = False):
         await render_template(
             'base.html',
             relative_path=(f'/{actual_path}' if actual_path != '/' else '/'),
-            modified_time=datetime.utcfromtimestamp((await aiopath.AsyncPath(full_path).stat()).st_mtime)
+            modified_time=datetime.utcfromtimestamp((await Path(full_path).stat()).st_mtime)
             .strftime('%Y-%m-%dT%H:%M:%S+00:00'), files=files, page='listing',
             breadcrumb=(await generate_breadcrumb(actual_path)
                         if settings.file_server.use_interactive_breadcrumb else ''),
@@ -453,7 +454,7 @@ async def serve_dir(full_path, actual_path, thumbnail: bool = False):
         )
     )
     # Wed, 05 Jul 2023 06:43:12 GMT for /public
-    resp.date = datetime.utcfromtimestamp((await aiopath.AsyncPath(full_path).stat()).st_mtime)
+    resp.date = datetime.utcfromtimestamp((await Path(full_path).stat()).st_mtime)
     return resp
 
 
