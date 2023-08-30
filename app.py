@@ -56,14 +56,6 @@ if settings.file_server.enable_header_files:
 
     if settings.file_server.enable_header_scripts:
         from importlib.machinery import SourceFileLoader
-if settings.file_server.enable_page_thumbnail:
-    if settings.file_server.page_thumbnail_backend == 'wkhtmltoimage':
-        import imgkit
-    elif settings.file_server.page_thumbnail_backend == 'qtwebengine5':
-        from PySide2.QtCore import Qt, QTimer, QByteArray, QBuffer, QIODevice, QUrl
-        from PySide2.QtGui import QPixmap
-        from PySide2.QtWidgets import QApplication
-        from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
 if settings.file_server.enable_video_thumbnail:
     # noinspection PyUnresolvedReferences
     import cv2
@@ -287,10 +279,11 @@ def _get_video_thumb(path: str, tiny: bool = False):
 
 
 def _page_thumbnail(path: str, tiny: None = None):
-    fh = open('/mnt/e/page.html', 'w')
-    fh.write(path)
-    fh.close()
     if settings.file_server.page_thumbnail_backend == 'qtwebengine5':
+        from PySide2.QtCore import Qt, QTimer, QByteArray, QBuffer, QIODevice, QUrl
+        from PySide2.QtGui import QPixmap
+        from PySide2.QtWidgets import QApplication
+        from PySide2.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
         class Render(QWebEngineView):
             def __init__(self, html):
                 self.img = None
@@ -311,6 +304,8 @@ def _page_thumbnail(path: str, tiny: None = None):
                 buf.open(QIODevice.WriteOnly)
                 pixmap.save(buf, "PNG")
                 self.img = ba.data()
+                buf.close()
+                ba.clear()
                 self.close()
                 self.app.quit()
 
@@ -320,6 +315,7 @@ def _page_thumbnail(path: str, tiny: None = None):
 
         return Render(path).img
     elif settings.file_server.page_thumbnail_backend == 'wkhtmltoimage':
+        import imgkit
         # wkhtmltoimage chokes on objects that fail to load
         try:
             i = imgkit.from_string(path, False, options={
