@@ -208,7 +208,7 @@ div.ui.container .ui.search .results .result .content .description {
     color: white;
 }
 
-/* UI Container: File Listing */
+/* UI Container: File Listing Header */
 div.ui.container table.file-listing {
     font-family: 'mononoki', 'Consolas', 'Menlo', 'SF Mono Regular', monospace;
     table-layout: auto;
@@ -233,6 +233,37 @@ div.ui.container table.file-listing .date-modified, .file-size, i.info {
     white-space: nowrap;
 }
 
+/* UI Container: File Listing Sorter */
+div.ui.container table.file-listing thead {
+    cursor: default;
+}
+
+div.ui.container table.file-listing thead tr th:not(.no-sort)::after, .sortable thead th:not(.no-sort)::before {
+    transition: color 0.1s ease-in-out;
+    font-size: 1.2em;
+    color: transparent;
+}
+
+div.ui.container table.file-listing thead tr th:not(.no-sort)::after {
+    margin-left: 3px;
+    content: "▸";
+}
+
+div.ui.container table.file-listing thead tr th:not(.no-sort):hover::after {
+    color: inherit;
+}
+
+div.ui.container table.file-listing thead tr th:not(.no-sort).sort-desc::after {
+    color: inherit;
+    content: "▾";
+}
+
+div.ui.container table.file-listing thead tr th:not(.no-sort).sort-asc::after {
+    color: inherit;
+    content: "▴";
+}
+
+/* UI Container: File Listing */
 @media screen and (max-width: 960px) {
     div.ui.container table.file-listing {
         border-collapse:separate;
