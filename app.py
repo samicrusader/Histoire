@@ -15,6 +15,7 @@ import mimetypes
 import os
 import pathlib
 import pydantic
+import string
 import traceback
 import urllib.parse
 import uvicorn.middleware.proxy_headers
@@ -23,7 +24,7 @@ from anyio import Path
 from datetime import datetime
 from hypercorn.config import Config
 from hypercorn.asyncio import serve as _serve
-from natsort import natsorted
+from natsort import humansorted as natsorted
 from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
 from quart.utils import run_sync
 from typing import Union
@@ -121,7 +122,11 @@ app.url_map.strict_slashes = False
 
 # noinspection PyUnresolvedReferences
 async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, Path]):
+    # *_symbolstart is to get around natsort ignoring starting symbols when sorting
+    # FIXME: This hack should be removed when this behavior can be corrected
+    folders_symbolstart = list()
     folders = list()
+    files_symbolstart = list()
     files = list()
     async for _file in aiopath.scandir.scandir_async(full_path):
         if not settings.file_server.show_dot_files:
@@ -144,14 +149,17 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, Path]):
         else:
             file['modified_at'] = datetime.fromtimestamp(stat.st_mtime).strftime('%m/%d/%Y %I:%M:%S %p')
         if not file['is_file']:
-            file['size'] = '-'
+            file['size'] = -1
+            file['pretty_size'] = '-'
         elif int(stat.st_size) == 0:
-            file['size'] = '0 B'
+            file['size'] = 0
+            file['pretty_size'] = '0 B'
         else:
+            file['size'] = int(stat.st_size)
             dec = int(math.floor(math.log(int(stat.st_size), 1024)))
             i = ('B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB')[dec]
             s = round(int(stat.st_size) / math.pow(1024, dec), 2)
-            file['size'] = '%s %s' % (s, i)
+            file['pretty_size'] = '%s %s' % (s, i)
         if file['is_file']:
             f = Path(full_path).joinpath(_file.name)
             file['extension'] = f.suffix.lstrip('.')
@@ -182,14 +190,23 @@ async def dir_walk(actual_path: str, full_path: Union[str, os.PathLike, Path]):
                         file['icon'] = 'otf'
                     case _:
                         file['icon'] = 'bin'
-            files.append(file)
+            if file['name'][0] not in string.ascii_letters+string.digits:
+                files_symbolstart.append(file)
+            else:
+                files.append(file)
         else:
             file['extension'] = ''
             file['icon'] = 'folder'
             file['path'] += '/'
             file['mimetype'] = 'text/directory'
-            folders.append(file)
-    return natsorted(folders, key=lambda _i: _i['name'].lower()) + natsorted(files, key=lambda _i: _i['name'].lower())
+            if file['name'][0] not in string.ascii_letters+string.digits:
+                folders_symbolstart.append(file)
+            else:
+                folders.append(file)
+    return natsorted(folders_symbolstart, key=lambda _i: _i['name'].lower()) + \
+        natsorted(folders, key=lambda _i: _i['name'].lower()) + \
+        natsorted(files_symbolstart, key=lambda _i: _i['name'].lower()) + \
+        natsorted(files, key=lambda _i: _i['name'].lower())
 
 
 async def verify_path(path: str):

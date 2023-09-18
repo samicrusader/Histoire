@@ -18,26 +18,26 @@
         <table class="file-listing">
     <thead>
         <tr>
-            <!--th class="collapsing info fitwidth" data-sort-method="none" role="columnheader"></th-->
+            {# <th class="collapsing info fitwidth" data-sort-method="none" role="columnheader"></th> #}
             <th class="collapsing icon no-sort fitwidth" data-sort-method="none" role="columnheader"></th>
-            <th class="collapsing filename" role="columnheader">Name</th>
+            <th class="collapsing filename sort-asc" role="columnheader">Name</th>
             <th class="collapsing date-modified fitwidth" data-sort-method="number" role="columnheader">Last Modified</th>
-            <th class="collapsing fitwidth" data-sort-method="filesize" role="columnheader">Size</th>
+            <th class="collapsing fitwidth file-size" data-sort-method="filesize" role="columnheader">Size</th>
         </tr>
     </thead>
     <tbody>
         {% if relative_path != '/' %}
         <tr data-sort-method="none">
-            <!--td class="info"></td-->
+            {# <td class="info"></td> #}
             <td><i class="angle left icon"></i></td>
             <td class="parent-dir"><a href="../">Parent Directory</a></td>
         </tr>
         {% endif %}
         {% for file in files %}
         <tr>
-            <!--td data-sort-method="none" class="info">
+            {# <td data-sort-method="none" class="info">
                 <i class="info circle icon"></i>
-            </td-->
+            </td> #}
             <td>
                 {% if enable_thumbnails %}
                 {% if not thumbnail %}
@@ -57,7 +57,7 @@
                 <a class="overflow" href="{{ file['path'] }}">{{ file['name'] }}</a>
             </td>
             <td class="fitwidth date-modified" data-sort="{{ file['modified_at_raw'] }}">{{ file['modified_at'] }}</td>
-            <td class="fitwidth file-size">{{ file['size'] }}</td>
+            <td class="fitwidth file-size" data-sort="{{ file['size'] }}">{{ file['pretty_size'] }}</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -74,18 +74,14 @@
         </div>
 {% endif %}
 {% filter indent(width=8) %}
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
-<script src="{{ settings.web_server.base_path }}/_/static/table.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
 {% if enable_thumbnails %}
 {% if not thumbnail and (settings.file_server.enable_video_thumbnail or settings.file_server.enable_image_thumbnail) %}
 <script src="{{ settings.web_server.base_path }}/_/static/thumbnail.js"></script>
 {% endif %}
 {% endif %}
 {% if not thumbnail %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.1.0/tablesort.min.js" integrity="sha256-p3wukcf2d2jxbVnlqPDO9t4AAjnl42D2aIzrK4S0X6w=" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.1.0/sorts/tablesort.number.min.js" integrity="sha256-ra1pWQ7MfuVIolZ/phcEXegs9m1ehXaCNI8cmc3gJEs=" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tablesort/5.1.0/sorts/tablesort.filesize.min.js" integrity="sha256-qNYlSpvv2lsmkcarYkQBkUzVcHKaml/BHcGxcSNsyrU=" crossorigin="anonymous"></script>
-<!--script src="{{ settings.web_server.base_path }}/_/static/tablesort.js"></script--> {# enable me for experimental tablesorting #}
+<script src="{{ settings.web_server.base_path }}/_/static/tablesort.js"></script>
 {% endif %}
 {% if has_code_block %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js" integrity="sha512-9khQRAUBYEJDCDVP2yw3LRUQvjJ0Pjx0EShmaQjcHa6AXiOv6qHQu9lCAIR8O+/D8FtaCoJ2c0Tf9Xo7hYH01Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
