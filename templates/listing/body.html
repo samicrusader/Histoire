@@ -74,7 +74,7 @@
         </div>
 {% endif %}
 {% filter indent(width=8) %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
 {% if enable_thumbnails %}
 {% if not thumbnail and (settings.file_server.enable_video_thumbnail or settings.file_server.enable_image_thumbnail) %}
 <script src="{{ settings.web_server.base_path }}/_/static/thumbnail.js"></script>
