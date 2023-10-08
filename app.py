@@ -549,7 +549,7 @@ if __name__ == '__main__':
     hypercorn_config = Config()
     hypercorn_config.access_log_format = "%(h)s %(r)s %(s)s %(b)s %(D)s"
     hypercorn_config.accesslog = "-"
-    hypercorn_config.bind = ['0.0.0.0:5000']
+    hypercorn_config.bind = [args.bind]
     hypercorn_config.errorlog = hypercorn_config.accesslog
     hypercorn_config.include_date_header = False
     try:
