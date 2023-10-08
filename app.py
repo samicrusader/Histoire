@@ -25,7 +25,7 @@ from datetime import datetime
 from hypercorn.config import Config
 from hypercorn.asyncio import serve as _serve
 from natsort import humansorted as natsorted
-from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response
+from quart import Quart, abort, send_from_directory, render_template, redirect, request, make_response, url_for
 from quart.utils import run_sync
 from typing import Union
 from configparse import Settings
@@ -430,7 +430,7 @@ async def thumbnailer():
                         await Path(full_path).joinpath('index.html').is_file():
                     await abort(404)
                 elif not request.args.get('path', None).endswith('/'):  # handle directory-without-a-trailing-slash
-                    return redirect('/_/thumbnailer?path=/' + str(actual_path) + '/', 302)
+                    return redirect(url_for('thumbnailer', path='/' + str(actual_path) + '/'), 302)
                 page = await serve_dir(full_path, actual_path, thumbnail=True)
                 page = await page.data
                 func = _page_thumbnail
@@ -445,6 +445,11 @@ async def thumbnailer():
         await fh.write(i)
         await fh.close()
     return await make_response(i, 200, {'Content-Type': 'image/jpeg'})
+
+
+@app.route('/_/page_thumbnail')
+async def thumbnailer_redirect():
+    return redirect(url_for('thumbnailer', path=request.args.get('path', '')))
 
 
 @app.route('/')
